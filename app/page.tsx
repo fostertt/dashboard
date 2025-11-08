@@ -17,6 +17,7 @@ interface Habit {
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showTodayOnly, setShowTodayOnly] = useState(true);
   const [completedToday, setCompletedToday] = useState<Set<number>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -26,17 +27,27 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(
     null
   );
+  const [savingHabit, setSavingHabit] = useState(false);
+  const [deletingHabit, setDeletingHabit] = useState(false);
   useEffect(() => {
     const loadData = async () => {
       try {
+        setError(null);
+
         // Fetch habits
         const habitsRes = await fetch("/api/habits");
+        if (!habitsRes.ok) {
+          throw new Error("Failed to load habits");
+        }
         const habitsData = await habitsRes.json();
         setHabits(Array.isArray(habitsData) ? habitsData : []);
 
         // Fetch today's completions
         const today = new Date().toISOString().split("T")[0];
         const completionsRes = await fetch(`/api/completions?date=${today}`);
+        if (!completionsRes.ok) {
+          throw new Error("Failed to load completions");
+        }
         const completionsData = await completionsRes.json();
 
         if (completionsData.completedHabitIds) {
@@ -46,6 +57,9 @@ export default function Home() {
         setLoading(false);
       } catch (err) {
         console.error("Error loading data:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load data"
+        );
         setLoading(false);
       }
     };
@@ -79,6 +93,9 @@ export default function Home() {
   const createHabit = async () => {
     if (!newHabitName.trim()) return;
 
+    setSavingHabit(true);
+    setError(null);
+
     try {
       const response = await fetch("/api/habits", {
         method: "POST",
@@ -89,23 +106,33 @@ export default function Home() {
         }),
       });
 
-      if (response.ok) {
-        // Refresh habits list
-        const data = await fetch("/api/habits").then((res) => res.json());
-        setHabits(Array.isArray(data) ? data : []);
-
-        // Reset form
-        setNewHabitName("");
-        setNewHabitScheduleType("daily");
-        setShowCreateModal(false);
+      if (!response.ok) {
+        throw new Error("Failed to create habit");
       }
+
+      // Refresh habits list
+      const data = await fetch("/api/habits").then((res) => res.json());
+      setHabits(Array.isArray(data) ? data : []);
+
+      // Reset form
+      setNewHabitName("");
+      setNewHabitScheduleType("daily");
+      setShowCreateModal(false);
     } catch (error) {
       console.error("Error creating habit:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to create habit"
+      );
+    } finally {
+      setSavingHabit(false);
     }
   };
 
   const updateHabit = async () => {
     if (!editingHabit || !editingHabit.name.trim()) return;
+
+    setSavingHabit(true);
+    setError(null);
 
     try {
       const response = await fetch(`/api/habits/${editingHabit.id}`, {
@@ -117,31 +144,48 @@ export default function Home() {
         }),
       });
 
-      if (response.ok) {
-        // Refresh habits list
-        const data = await fetch("/api/habits").then((res) => res.json());
-        setHabits(Array.isArray(data) ? data : []);
-        setEditingHabit(null);
+      if (!response.ok) {
+        throw new Error("Failed to update habit");
       }
+
+      // Refresh habits list
+      const data = await fetch("/api/habits").then((res) => res.json());
+      setHabits(Array.isArray(data) ? data : []);
+      setEditingHabit(null);
     } catch (error) {
       console.error("Error updating habit:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to update habit"
+      );
+    } finally {
+      setSavingHabit(false);
     }
   };
 
   const deleteHabit = async (habitId: number) => {
+    setDeletingHabit(true);
+    setError(null);
+
     try {
       const response = await fetch(`/api/habits/${habitId}`, {
         method: "DELETE",
       });
 
-      if (response.ok) {
-        // Refresh habits list
-        const data = await fetch("/api/habits").then((res) => res.json());
-        setHabits(Array.isArray(data) ? data : []);
-        setShowDeleteConfirm(null);
+      if (!response.ok) {
+        throw new Error("Failed to delete habit");
       }
+
+      // Refresh habits list
+      const data = await fetch("/api/habits").then((res) => res.json());
+      setHabits(Array.isArray(data) ? data : []);
+      setShowDeleteConfirm(null);
     } catch (error) {
       console.error("Error deleting habit:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to delete habit"
+      );
+    } finally {
+      setDeletingHabit(false);
     }
   };
 
@@ -193,6 +237,47 @@ export default function Home() {
           </Link>
         </div>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+            <svg
+              className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-900">Error</h3>
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-600 hover:text-red-800"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Habits Section */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
           <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -221,12 +306,42 @@ export default function Home() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
             </div>
           ) : displayedHabits.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500 text-lg">
+            <div className="text-center py-16">
+              <div className="flex justify-center mb-4">
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-12 h-12 text-purple-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
                 {showTodayOnly
                   ? "No habits scheduled for today"
-                  : "No habits found"}
+                  : "No habits yet"}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {showTodayOnly
+                  ? "You're all clear for today! Switch to 'All Habits' to see your full list."
+                  : "Start building better habits by creating your first one."}
               </p>
+              {!showTodayOnly && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full hover:shadow-lg transition-all hover:scale-105 font-semibold"
+                >
+                  Create Your First Habit
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid gap-4">
@@ -475,16 +590,38 @@ export default function Home() {
                     setShowCreateModal(false);
                     setNewHabitName("");
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  disabled={savingHabit}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={createHabit}
-                  disabled={!newHabitName.trim()}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!newHabitName.trim() || savingHabit}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Create Habit
+                  {savingHabit && (
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                  )}
+                  {savingHabit ? "Creating..." : "Create Habit"}
                 </button>
               </div>
             </div>
@@ -536,15 +673,38 @@ export default function Home() {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setEditingHabit(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  disabled={savingHabit}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={updateHabit}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  disabled={savingHabit}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Save Changes
+                  {savingHabit && (
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                  )}
+                  {savingHabit ? "Saving..." : "Save Changes"}
                 </button>
               </div>
             </div>
@@ -565,15 +725,38 @@ export default function Home() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(null)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  disabled={deletingHabit}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => deleteHabit(showDeleteConfirm)}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  disabled={deletingHabit}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Delete
+                  {deletingHabit && (
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                  )}
+                  {deletingHabit ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </div>
