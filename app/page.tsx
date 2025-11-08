@@ -14,6 +14,12 @@ interface Habit {
   parentHabitId?: number;
 }
 
+interface Toast {
+  id: number;
+  message: string;
+  type: "success" | "error" | "info";
+}
+
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +35,15 @@ export default function Home() {
   );
   const [savingHabit, setSavingHabit] = useState(false);
   const [deletingHabit, setDeletingHabit] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const showToast = (message: string, type: Toast["type"] = "success") => {
+    const id = Date.now();
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3000);
+  };
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -118,11 +133,13 @@ export default function Home() {
       setNewHabitName("");
       setNewHabitScheduleType("daily");
       setShowCreateModal(false);
+      showToast("Habit created successfully!", "success");
     } catch (error) {
       console.error("Error creating habit:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to create habit"
-      );
+      const message =
+        error instanceof Error ? error.message : "Failed to create habit";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setSavingHabit(false);
     }
@@ -152,11 +169,13 @@ export default function Home() {
       const data = await fetch("/api/habits").then((res) => res.json());
       setHabits(Array.isArray(data) ? data : []);
       setEditingHabit(null);
+      showToast("Habit updated successfully!", "success");
     } catch (error) {
       console.error("Error updating habit:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to update habit"
-      );
+      const message =
+        error instanceof Error ? error.message : "Failed to update habit";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setSavingHabit(false);
     }
@@ -179,11 +198,13 @@ export default function Home() {
       const data = await fetch("/api/habits").then((res) => res.json());
       setHabits(Array.isArray(data) ? data : []);
       setShowDeleteConfirm(null);
+      showToast("Habit deleted successfully!", "success");
     } catch (error) {
       console.error("Error deleting habit:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to delete habit"
-      );
+      const message =
+        error instanceof Error ? error.message : "Failed to delete habit";
+      setError(message);
+      showToast(message, "error");
     } finally {
       setDeletingHabit(false);
     }
@@ -557,7 +578,7 @@ export default function Home() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Habit Name
+                    Habit Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -566,7 +587,11 @@ export default function Home() {
                     placeholder="e.g., Morning Exercise"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     autoFocus
+                    maxLength={100}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {newHabitName.length}/100 characters
+                  </p>
                 </div>
 
                 <div>
@@ -638,7 +663,7 @@ export default function Home() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Habit Name
+                    Habit Name <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -647,7 +672,11 @@ export default function Home() {
                       setEditingHabit({ ...editingHabit, name: e.target.value })
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    maxLength={100}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editingHabit.name.length}/100 characters
+                  </p>
                 </div>
 
                 <div>
@@ -770,6 +799,54 @@ export default function Home() {
         >
           +
         </button>
+
+        {/* Toast Notifications */}
+        <div className="fixed bottom-8 left-8 space-y-2 z-50">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px] animate-in slide-in-from-bottom-5 ${
+                toast.type === "success"
+                  ? "bg-green-600 text-white"
+                  : toast.type === "error"
+                  ? "bg-red-600 text-white"
+                  : "bg-blue-600 text-white"
+              }`}
+            >
+              {toast.type === "success" && (
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              )}
+              {toast.type === "error" && (
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              )}
+              <span className="flex-1 font-medium">{toast.message}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
