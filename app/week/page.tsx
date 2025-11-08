@@ -15,19 +15,78 @@ interface Habit {
 export default function WeekView() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [loading, setLoading] = useState(true);
+  // Map of "YYYY-MM-DD" -> Set of completed habit IDs
+  const [completions, setCompletions] = useState<Map<string, Set<number>>>(
+    new Map()
+  );
 
   useEffect(() => {
-    fetch("/api/habits")
-      .then((res) => res.json())
-      .then((data) => {
-        setHabits(Array.isArray(data) ? data : []);
+    const loadData = async () => {
+      try {
+        // Fetch habits
+        const habitsRes = await fetch("/api/habits");
+        const habitsData = await habitsRes.json();
+        setHabits(Array.isArray(habitsData) ? habitsData : []);
+
+        // Fetch completions for all 7 days of the week
+        const weekDays = getWeekDays();
+        const completionsMap = new Map<string, Set<number>>();
+
+        await Promise.all(
+          weekDays.map(async (day) => {
+            const dateStr = day.toISOString().split("T")[0];
+            const res = await fetch(`/api/completions?date=${dateStr}`);
+            const data = await res.json();
+
+            if (data.completedHabitIds) {
+              completionsMap.set(dateStr, new Set(data.completedHabitIds));
+            } else {
+              completionsMap.set(dateStr, new Set());
+            }
+          })
+        );
+
+        setCompletions(completionsMap);
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching habits:", err);
+      } catch (err) {
+        console.error("Error loading data:", err);
         setLoading(false);
-      });
+      }
+    };
+
+    loadData();
   }, []);
+
+  const toggleHabit = async (habitId: number, date: Date) => {
+    const dateStr = date.toISOString().split("T")[0];
+
+    try {
+      const response = await fetch(`/api/habits/${habitId}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: dateStr }),
+      });
+
+      const data = await response.json();
+
+      // Update local state
+      setCompletions((prev) => {
+        const newCompletions = new Map(prev);
+        const dateCompletions = new Set(prev.get(dateStr) || new Set());
+
+        if (data.completed) {
+          dateCompletions.add(habitId);
+        } else {
+          dateCompletions.delete(habitId);
+        }
+
+        newCompletions.set(dateStr, dateCompletions);
+        return newCompletions;
+      });
+    } catch (error) {
+      console.error("Error toggling habit:", error);
+    }
+  };
 
   // Get array of 7 days starting from Monday of current week
   const getWeekDays = () => {
@@ -120,6 +179,9 @@ export default function WeekView() {
                   {weekDays.map((day, dayIndex) => {
                     const isScheduled = isScheduledForDay(habit, dayIndex);
                     const isToday = day.toDateString() === today;
+                    const dateStr = day.toISOString().split("T")[0];
+                    const isCompleted =
+                      completions.get(dateStr)?.has(habit.id) || false;
 
                     return (
                       <div
@@ -130,7 +192,13 @@ export default function WeekView() {
                       >
                         {isScheduled && (
                           <div className="text-sm">
-                            <div className="font-medium text-gray-900 mb-1">
+                            <div
+                              className={`font-medium mb-1 ${
+                                isCompleted
+                                  ? "text-gray-500 line-through"
+                                  : "text-gray-900"
+                              }`}
+                            >
                               {habit.name}
                             </div>
                             {habit.scheduledTime && (
@@ -138,9 +206,18 @@ export default function WeekView() {
                                 {habit.scheduledTime.substring(0, 5)}
                               </div>
                             )}
-                            <button className="mt-2 w-6 h-6 rounded border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors flex items-center justify-center">
+                            <button
+                              onClick={() => toggleHabit(habit.id, day)}
+                              className={`mt-2 w-6 h-6 rounded border-2 transition-colors flex items-center justify-center ${
+                                isCompleted
+                                  ? "border-green-500 bg-green-500 hover:bg-green-600"
+                                  : "border-gray-300 hover:border-green-500 hover:bg-green-50"
+                              }`}
+                            >
                               <svg
-                                className="w-3 h-3 text-gray-400"
+                                className={`w-3 h-3 ${
+                                  isCompleted ? "text-white" : "text-gray-400"
+                                }`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
