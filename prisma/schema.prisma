@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id                String              @id
+  id                String              @id @default(cuid())
   email             String?             @unique(map: "sqlite_autoindex_users_2")
   emailVerified     DateTime?           @map("email_verified")
   name              String?
