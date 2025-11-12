@@ -78,8 +78,8 @@ export default function Home() {
         const habitsData = await habitsRes.json();
         setHabits(Array.isArray(habitsData) ? habitsData : []);
 
-        // Fetch items
-        const itemsRes = await fetch("/api/items?type=habit");
+        // Fetch all items (habits, tasks, reminders)
+        const itemsRes = await fetch("/api/items");
         if (!itemsRes.ok) {
           throw new Error("Failed to load items");
         }
@@ -164,7 +164,7 @@ export default function Home() {
 
   const refreshItems = async () => {
     try {
-      const itemsRes = await fetch("/api/items?type=habit");
+      const itemsRes = await fetch("/api/items");
       if (itemsRes.ok) {
         const itemsData = await itemsRes.json();
         setItems(Array.isArray(itemsData) ? itemsData : []);
@@ -686,7 +686,8 @@ export default function Home() {
                         )}
 
                         <div className="flex items-center gap-4 text-sm">
-                          {item.scheduleType && (
+                          {/* Habit-specific fields */}
+                          {item.itemType === "habit" && item.scheduleType && (
                             <span className="flex items-center gap-2 text-gray-700">
                               <svg
                                 className="w-4 h-4"
@@ -707,13 +708,65 @@ export default function Home() {
                             </span>
                           )}
 
-                          {item.priority && (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              item.priority === "high" ? "bg-red-100 text-red-700" :
-                              item.priority === "medium" ? "bg-yellow-100 text-yellow-700" :
-                              "bg-gray-100 text-gray-700"
-                            }`}>
-                              {item.priority} priority
+                          {/* Task-specific fields */}
+                          {item.itemType === "task" && (
+                            <>
+                              {item.dueDate && (
+                                <span className="flex items-center gap-2 text-gray-700">
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                    />
+                                  </svg>
+                                  <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>
+                                </span>
+                              )}
+                              {item.status && (
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  item.status === "completed" ? "bg-green-100 text-green-700" :
+                                  item.status === "in-progress" ? "bg-blue-100 text-blue-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }`}>
+                                  {item.status}
+                                </span>
+                              )}
+                              {item.priority && (
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  item.priority === "high" ? "bg-red-100 text-red-700" :
+                                  item.priority === "medium" ? "bg-yellow-100 text-yellow-700" :
+                                  "bg-gray-100 text-gray-700"
+                                }`}>
+                                  {item.priority} priority
+                                </span>
+                              )}
+                            </>
+                          )}
+
+                          {/* Reminder-specific fields */}
+                          {item.itemType === "reminder" && item.reminderDatetime && (
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                                />
+                              </svg>
+                              <span>{new Date(item.reminderDatetime).toLocaleString()}</span>
                             </span>
                           )}
                         </div>
