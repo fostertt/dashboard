@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
+import CreateItemModal from "@/components/CreateItemModal";
 
 interface Habit {
   id: number;
@@ -15,6 +16,22 @@ interface Habit {
   parentHabitId?: number;
 }
 
+interface Item {
+  id: number;
+  name: string;
+  description?: string;
+  itemType: string;
+  scheduleType?: string;
+  scheduleDays?: string;
+  scheduledTime?: string;
+  dueDate?: string;
+  priority?: string;
+  status?: string;
+  reminderDatetime?: string;
+  isParent: boolean;
+  parentItemId?: number;
+}
+
 interface Toast {
   id: number;
   message: string;
@@ -23,11 +40,14 @@ interface Toast {
 
 export default function Home() {
   const [habits, setHabits] = useState<Habit[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTodayOnly, setShowTodayOnly] = useState(true);
   const [completedToday, setCompletedToday] = useState<Set<number>>(new Set());
+  const [completedItems, setCompletedItems] = useState<Set<number>>(new Set());
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateItemModal, setShowCreateItemModal] = useState(false);
   const [newHabitName, setNewHabitName] = useState("");
   const [newHabitScheduleType, setNewHabitScheduleType] = useState("daily");
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -58,6 +78,14 @@ export default function Home() {
         const habitsData = await habitsRes.json();
         setHabits(Array.isArray(habitsData) ? habitsData : []);
 
+        // Fetch items
+        const itemsRes = await fetch("/api/items?type=habit");
+        if (!itemsRes.ok) {
+          throw new Error("Failed to load items");
+        }
+        const itemsData = await itemsRes.json();
+        setItems(Array.isArray(itemsData) ? itemsData : []);
+
         // Fetch today's completions
         const today = new Date().toISOString().split("T")[0];
         const completionsRes = await fetch(`/api/completions?date=${today}`);
@@ -68,6 +96,9 @@ export default function Home() {
 
         if (completionsData.completedHabitIds) {
           setCompletedToday(new Set(completionsData.completedHabitIds));
+        }
+        if (completionsData.completedItemIds) {
+          setCompletedItems(new Set(completionsData.completedItemIds));
         }
 
         setLoading(false);
@@ -104,6 +135,42 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Error toggling habit:", error);
+    }
+  };
+
+  const toggleItem = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/items/${itemId}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: new Date().toISOString().split("T")[0] }),
+      });
+
+      const data = await response.json();
+
+      if (data.completed) {
+        setCompletedItems((prev) => new Set(prev).add(itemId));
+      } else {
+        setCompletedItems((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          return newSet;
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling item:", error);
+    }
+  };
+
+  const refreshItems = async () => {
+    try {
+      const itemsRes = await fetch("/api/items?type=habit");
+      if (itemsRes.ok) {
+        const itemsData = await itemsRes.json();
+        setItems(Array.isArray(itemsData) ? itemsData : []);
+      }
+    } catch (error) {
+      console.error("Error refreshing items:", error);
     }
   };
   const createHabit = async () => {
@@ -517,6 +584,177 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Items Section (New System) */}
+        <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
+          <div className="flex items-center gap-3 mb-6 flex-wrap">
+            <span className="text-3xl">✨</span>
+            <h2 className="text-2xl font-bold text-gray-800">Items (New System)</h2>
+            <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+              {items.length} total
+            </span>
+            <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-semibold">
+              {completedItems.size} completed today
+            </span>
+            <button
+              onClick={() => setShowCreateItemModal(true)}
+              className="ml-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:shadow-lg transition-all hover:scale-105 font-semibold text-sm"
+            >
+              + Create Item
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-16">
+              <div className="flex justify-center mb-4">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-12 h-12 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                No items yet
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Create your first item to test the new unified system!
+              </p>
+              <button
+                onClick={() => setShowCreateItemModal(true)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:shadow-lg transition-all hover:scale-105 font-semibold"
+              >
+                Create Your First Item
+              </button>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {items.map((item) => {
+                const isCompleted = completedItems.has(item.id);
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`border-2 rounded-xl p-5 hover:shadow-md transition-all duration-200 ${
+                      isCompleted
+                        ? "border-green-300 bg-gradient-to-r from-green-50 to-emerald-50"
+                        : "border-gray-100 bg-gradient-to-r from-white to-gray-50 hover:border-blue-300"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3
+                            className={`text-lg font-semibold ${
+                              isCompleted
+                                ? "text-gray-500 line-through"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {item.name}
+                          </h3>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            item.itemType === "habit" ? "bg-purple-100 text-purple-700" :
+                            item.itemType === "task" ? "bg-blue-100 text-blue-700" :
+                            "bg-green-100 text-green-700"
+                          }`}>
+                            {item.itemType}
+                          </span>
+                          {item.isParent && (
+                            <span className="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full font-medium">
+                              Parent
+                            </span>
+                          )}
+                        </div>
+
+                        {item.description && (
+                          <p className="text-gray-600 text-sm mb-3">
+                            {item.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-4 text-sm">
+                          {item.scheduleType && (
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                              </svg>
+                              <span className="font-medium capitalize">
+                                {item.scheduleType}
+                              </span>
+                            </span>
+                          )}
+
+                          {item.priority && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              item.priority === "high" ? "bg-red-100 text-red-700" :
+                              item.priority === "medium" ? "bg-yellow-100 text-yellow-700" :
+                              "bg-gray-100 text-gray-700"
+                            }`}>
+                              {item.priority} priority
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {item.itemType === "habit" && (
+                          <button
+                            onClick={() => toggleItem(item.id)}
+                            className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
+                              isCompleted
+                                ? "border-green-500 bg-green-500 hover:bg-green-600"
+                                : "border-gray-300 hover:border-green-500 hover:bg-green-50"
+                            }`}
+                          >
+                            <svg
+                              className={`w-5 h-5 ${
+                                isCompleted ? "text-white" : "text-gray-400"
+                              }`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Progress Section */}
         <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white">
           <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
@@ -835,6 +1073,16 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        {/* Create Item Modal */}
+        <CreateItemModal
+          isOpen={showCreateItemModal}
+          onClose={() => setShowCreateItemModal(false)}
+          onSuccess={() => {
+            refreshItems();
+            showToast("Item created successfully!", "success");
+          }}
+        />
       </div>
     </ProtectedRoute>
   );

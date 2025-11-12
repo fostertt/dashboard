@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/session";
 
 // GET /api/items - Get all items (tasks, habits, reminders)
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Get user ID from session/auth
-    const userId = "48868489";
+    const user = await requireAuth();
+    const userId = user.id;
 
     const { searchParams } = new URL(request.url);
     const itemType = searchParams.get("type"); // Filter by type if provided
@@ -17,12 +18,37 @@ export async function GET(request: NextRequest) {
 
     const items = await prisma.item.findMany({
       where,
-      include: {
-        completions: true,
-        subItems: true,
+      select: {
+        id: true,
+        userId: true,
+        itemType: true,
+        name: true,
+        description: true,
+        scheduleType: true,
+        scheduleDays: true,
+        scheduledTime: true,
+        dueDate: true,
+        dueTime: true,
+        reminderDatetime: true,
+        reminderRecurrence: true,
+        reminderDays: true,
+        isCompleted: true,
+        completedAt: true,
+        isDismissed: true,
+        dismissedAt: true,
+        priority: true,
+        status: true,
+        parentItemId: true,
+        isParent: true,
+        createdAt: true,
+        updatedAt: true,
+        recurrenceType: true,
+        recurrenceInterval: true,
+        recurrenceUnit: true,
+        recurrenceAnchor: true,
       },
       orderBy: {
-        createdAt: "desc",
+        id: "desc",
       },
     });
 
@@ -39,8 +65,8 @@ export async function GET(request: NextRequest) {
 // POST /api/items - Create a new item (task, habit, or reminder)
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Get user ID from session/auth
-    const userId = "48868489";
+    const user = await requireAuth();
+    const userId = user.id;
 
     const body = await request.json();
     const {
@@ -68,16 +94,28 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!itemType || !name) {
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    if (!itemType || !["habit", "task", "reminder"].includes(itemType)) {
       return NextResponse.json(
-        { error: "itemType and name are required" },
+        { error: "Valid itemType is required (habit, task, or reminder)" },
         { status: 400 }
       );
     }
 
-    if (!["task", "habit", "reminder"].includes(itemType)) {
+    // Type-specific validations
+    if (itemType === "habit" && !scheduleType) {
       return NextResponse.json(
-        { error: "itemType must be task, habit, or reminder" },
+        { error: "scheduleType is required for habits" },
+        { status: 400 }
+      );
+    }
+
+    if (itemType === "reminder" && !reminderDatetime) {
+      return NextResponse.json(
+        { error: "reminderDatetime is required for reminders" },
         { status: 400 }
       );
     }
@@ -86,24 +124,28 @@ export async function POST(request: NextRequest) {
     const item = await prisma.item.create({
       data: {
         userId,
-        itemType,
         name,
+        itemType,
         description,
         scheduleType,
         scheduleDays,
         scheduledTime,
         dueDate: dueDate ? new Date(dueDate) : null,
         dueTime,
+        reminderDatetime,
+        reminderRecurrence,
+        reminderDays,
         priority,
+        status,
+        parentItemId,
+        isParent: false,
+        isCompleted: false,
+        isDismissed: false,
+        createdAt: new Date().toISOString(),
         recurrenceType,
         recurrenceInterval,
         recurrenceUnit,
         recurrenceAnchor,
-        reminderDatetime: reminderDatetime ? new Date(reminderDatetime) : null,
-        reminderRecurrence,
-        reminderDays,
-        parentItemId,
-        isParent: false,
       },
     });
 

@@ -33,12 +33,16 @@ export async function GET(request: NextRequest) {
 
     const habitIds = habits.map((h) => h.id);
 
-    if (habitIds.length === 0) {
-      return NextResponse.json({ completedHabitIds: [], date: dateStr });
-    }
+    // Get all items (habits only) for this user
+    const items = await prisma.item.findMany({
+      where: { userId, itemType: 'habit' },
+      select: { id: true },
+    });
 
-    // Get completions for these habits on the target date using range query
-    const completions = await prisma.habitCompletion.findMany({
+    const itemIds = items.map((i) => i.id);
+
+    // Get completions for habits on the target date using range query
+    const habitCompletions = habitIds.length > 0 ? await prisma.habitCompletion.findMany({
       where: {
         habitId: { in: habitIds },
         completionDate: {
@@ -49,12 +53,31 @@ export async function GET(request: NextRequest) {
       select: {
         habitId: true,
       },
+    }) : [];
+
+    // Get completions for items on the target date using range query
+    const itemCompletions = itemIds.length > 0 ? await prisma.itemCompletion.findMany({
+      where: {
+        itemId: { in: itemIds },
+        completionDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: {
+        itemId: true,
+      },
+    }) : [];
+
+    // Return arrays of completed IDs
+    const completedHabitIds = habitCompletions.map((c) => c.habitId);
+    const completedItemIds = itemCompletions.map((c) => c.itemId);
+
+    return NextResponse.json({
+      completedHabitIds,
+      completedItemIds,
+      date: dateStr
     });
-
-    // Return array of completed habit IDs
-    const completedHabitIds = completions.map((c) => c.habitId);
-
-    return NextResponse.json({ completedHabitIds, date: dateStr });
   } catch (error) {
     console.error("Error fetching completions:", error);
     return NextResponse.json(
