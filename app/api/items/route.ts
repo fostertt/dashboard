@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
       dueDate,
       dueTime,
       priority,
+      status = "pending",
       recurrenceType,
       recurrenceInterval,
       recurrenceUnit,
