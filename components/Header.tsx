@@ -2,13 +2,17 @@
 
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 export default function Header() {
   const { data: session } = useSession();
+  const pathname = usePathname();
 
   if (!session?.user) {
     return null;
   }
+
+  const isWeekPage = pathname === "/week";
 
   return (
     <div className="flex items-center justify-between mb-8">
@@ -21,12 +25,21 @@ export default function Header() {
         </p>
       </div>
       <div className="flex items-center gap-4">
-        <Link
-          href="/week"
-          className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors font-semibold"
-        >
-          📅 Week View
-        </Link>
+        {isWeekPage ? (
+          <Link
+            href="/"
+            className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors font-semibold"
+          >
+            📅 Today
+          </Link>
+        ) : (
+          <Link
+            href="/week"
+            className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors font-semibold"
+          >
+            📅 Week View
+          </Link>
+        )}
         <button
           onClick={() => signOut()}
           className="px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-full hover:border-red-500 hover:text-red-600 transition-colors font-semibold"
