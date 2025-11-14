@@ -25,34 +25,38 @@ export async function GET(request: NextRequest) {
     const startOfDay = new Date(dateStr + "T00:00:00.000Z");
     const endOfDay = new Date(dateStr + "T23:59:59.999Z");
 
-    // Get all habits for this user
-    const habits = await prisma.habit.findMany({
-      where: { userId },
+    // Get all habits for this user (only recurring items)
+    const items = await prisma.item.findMany({
+      where: {
+        userId,
+        itemType: "habit",
+        scheduleType: "daily"
+      },
       select: { id: true },
     });
 
-    const habitIds = habits.map((h) => h.id);
+    const itemIds = items.map((item) => item.id);
 
-    if (habitIds.length === 0) {
+    if (itemIds.length === 0) {
       return NextResponse.json({ completedHabitIds: [], date: dateStr });
     }
 
     // Get completions for these habits on the target date using range query
-    const completions = await prisma.habitCompletion.findMany({
+    const completions = await prisma.itemCompletion.findMany({
       where: {
-        habitId: { in: habitIds },
+        itemId: { in: itemIds },
         completionDate: {
           gte: startOfDay,
           lte: endOfDay,
         },
       },
       select: {
-        habitId: true,
+        itemId: true,
       },
     });
 
     // Return array of completed habit IDs
-    const completedHabitIds = completions.map((c) => c.habitId);
+    const completedHabitIds = completions.map((c) => c.itemId);
 
     return NextResponse.json({ completedHabitIds, date: dateStr });
   } catch (error) {
