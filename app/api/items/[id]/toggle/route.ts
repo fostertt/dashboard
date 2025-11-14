@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // POST /api/items/[id]/toggle - Toggle item completion for a specific date
@@ -7,7 +9,16 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const userId = "48868489";
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
     const itemId = parseInt(params.id);
     const body = await request.json();
     const { date } = body;

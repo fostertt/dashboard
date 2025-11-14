@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/items - Get all items (tasks, habits, reminders)
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Get user ID from session/auth
-    const userId = "48868489";
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
 
     const { searchParams } = new URL(request.url);
     const itemType = searchParams.get("type"); // Filter by type if provided
@@ -39,8 +49,16 @@ export async function GET(request: NextRequest) {
 // POST /api/items - Create a new item (task, habit, or reminder)
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Get user ID from session/auth
-    const userId = "48868489";
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userId = session.user.id;
 
     const body = await request.json();
     const {
