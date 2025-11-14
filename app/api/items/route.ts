@@ -100,6 +100,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate that habits have scheduleType set
+    if (itemType === "habit" && !scheduleType) {
+      return NextResponse.json(
+        { error: "scheduleType is required for habits" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[Create Item] Creating ${itemType}: name="${name}", scheduleType="${scheduleType}"`);
+
     // Create the item
     const item = await prisma.item.create({
       data: {

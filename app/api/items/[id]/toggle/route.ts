@@ -46,6 +46,8 @@ export async function POST(
     // Determine if this is a recurring item (habit with schedule) or one-time item (task/reminder)
     const isRecurring = item.scheduleType && item.scheduleType !== "";
 
+    console.log(`[Toggle] Item ${itemId} (${item.itemType}): scheduleType="${item.scheduleType}", isRecurring=${isRecurring}`);
+
     if (isRecurring) {
       // For recurring items (habits): use ItemCompletion table to track by date
       const completionDate = new Date(date);

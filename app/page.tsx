@@ -184,7 +184,8 @@ export default function Home() {
       // Set time and date based on item type
       if (selectedItemType === "habit") {
         if (formTime) itemData.scheduledTime = formTime;
-        if (formRecurring) itemData.scheduleType = "daily";
+        // Habits are always recurring - default to "daily"
+        itemData.scheduleType = "daily";
       } else if (selectedItemType === "task") {
         if (formTime) itemData.dueTime = formTime;
         if (formDay) itemData.dueDate = formDay;
@@ -194,6 +195,8 @@ export default function Home() {
         if (formDay) itemData.dueDate = formDay;
         if (formRecurring) itemData.scheduleType = "daily";
       }
+
+      console.log("[Create Item] Sending to API:", itemData);
 
       const response = await fetch("/api/items", {
         method: "POST",
@@ -232,7 +235,8 @@ export default function Home() {
       // Set time and date based on item type
       if (editingItem.itemType === "habit") {
         if (formTime) itemData.scheduledTime = formTime;
-        itemData.scheduleType = formRecurring ? "daily" : null;
+        // Habits are always recurring - maintain "daily" scheduleType
+        itemData.scheduleType = "daily";
       } else if (editingItem.itemType === "task") {
         if (formTime) itemData.dueTime = formTime;
         if (formDay) itemData.dueDate = formDay;
