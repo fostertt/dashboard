@@ -338,7 +338,12 @@ export default function WeekView() {
         const today = new Date();
         return date.toDateString() === today.toDateString();
       }
-      const dueDate = new Date(item.dueDate);
+      // Parse the date string without timezone conversion to avoid off-by-one errors
+      // The dueDate comes as ISO string like "2025-11-16T00:00:00.000Z" or date string "2025-11-16"
+      const dueDateStr = typeof item.dueDate === 'string' ? item.dueDate : item.dueDate.toISOString();
+      const datePart = dueDateStr.split('T')[0]; // Extract "2025-11-16"
+      const [year, month, day] = datePart.split('-').map(Number);
+      const dueDate = new Date(year, month - 1, day); // Create local date without timezone shift
       return dueDate.toDateString() === date.toDateString();
     }
 
@@ -476,8 +481,8 @@ export default function WeekView() {
           ) : (
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               {/* Calendar Grid - Responsive with horizontal scroll on smaller screens */}
-              <div className="overflow-x-auto">
-                <div className="grid grid-cols-7 gap-px bg-gray-200 min-w-[768px]">
+              <div className="w-full overflow-x-auto">
+                <div className="grid grid-cols-7 gap-px bg-gray-200 min-w-[896px] md:min-w-0">
                   {/* Day Headers */}
                   {weekDays.map((day, index) => {
                     const isToday = day.toDateString() === today;
