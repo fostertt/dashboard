@@ -481,7 +481,7 @@ export default function WeekView() {
           ) : (
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
               {/* Calendar Grid - Responsive with horizontal scroll on smaller screens */}
-              <div className="w-full overflow-x-auto">
+              <div className="w-full overflow-x-auto overflow-y-auto max-h-[calc(100vh-280px)]">
                 <div className="grid grid-cols-7 gap-px bg-gray-200 min-w-[896px] md:min-w-0">
                   {/* Day Headers */}
                   {weekDays.map((day, index) => {
