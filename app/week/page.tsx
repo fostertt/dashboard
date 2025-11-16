@@ -561,21 +561,33 @@ export default function WeekView() {
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <button
+                                    onClick={() => toggleItem(item.id, day)}
+                                    className={`w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center flex-shrink-0 ${
+                                      isCompleted
+                                        ? "border-green-500 bg-green-500 hover:bg-green-600"
+                                        : "border-gray-300 hover:border-green-500 hover:bg-green-50"
+                                    }`}
+                                  >
+                                    <svg
+                                      className={`w-3 h-3 ${isCompleted ? "text-white" : "text-gray-400"}`}
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
                                     onClick={() => openEditModal(item)}
                                     className="px-2 py-1 text-xs border border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded transition-colors flex-shrink-0"
                                     title="Edit"
                                   >
                                     Edit
-                                  </button>
-                                  <button
-                                    onClick={() => toggleItem(item.id, day)}
-                                    className={`flex-1 px-2 py-1 text-xs rounded transition-colors whitespace-nowrap ${
-                                      isCompleted
-                                        ? "bg-green-500 text-white hover:bg-green-600"
-                                        : "border border-gray-300 hover:border-green-500 hover:bg-green-50"
-                                    }`}
-                                  >
-                                    {isCompleted ? "✓ Done" : "Complete"}
                                   </button>
                                 </div>
                               </div>
