@@ -475,110 +475,112 @@ export default function WeekView() {
             </div>
           ) : (
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-px bg-gray-200">
-                {/* Day Headers */}
-                {weekDays.map((day, index) => {
-                  const isToday = day.toDateString() === today;
-                  return (
-                    <div
-                      key={index}
-                      className={`p-4 text-center font-semibold ${
-                        isToday
-                          ? "bg-purple-600 text-white"
-                          : "bg-gray-50 text-gray-700"
-                      }`}
-                    >
-                      <div className="text-sm">{dayNames[index]}</div>
-                      <div className="text-2xl mt-1">{day.getDate()}</div>
-                      <div className="text-xs mt-1">
-                        {day.toLocaleDateString("en-US", { month: "short" })}
+              {/* Calendar Grid - Responsive with horizontal scroll on smaller screens */}
+              <div className="overflow-x-auto">
+                <div className="grid grid-cols-7 gap-px bg-gray-200 min-w-[768px]">
+                  {/* Day Headers */}
+                  {weekDays.map((day, index) => {
+                    const isToday = day.toDateString() === today;
+                    return (
+                      <div
+                        key={index}
+                        className={`p-4 text-center font-semibold ${
+                          isToday
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-50 text-gray-700"
+                        }`}
+                      >
+                        <div className="text-sm">{dayNames[index]}</div>
+                        <div className="text-2xl mt-1">{day.getDate()}</div>
+                        <div className="text-xs mt-1">
+                          {day.toLocaleDateString("en-US", { month: "short" })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
 
-                {/* Day Cells with Items */}
-                {weekDays.map((day, dayIndex) => {
-                  const isToday = day.toDateString() === today;
-                  const dateStr = day.toISOString().split("T")[0];
+                  {/* Day Cells with Items */}
+                  {weekDays.map((day, dayIndex) => {
+                    const isToday = day.toDateString() === today;
+                    const dateStr = day.toISOString().split("T")[0];
 
-                  // Get items for this day
-                  const dayItems = items.filter((item) =>
-                    isScheduledForDay(item, day) && filterTypes.has(item.itemType)
-                  );
-                  const sortedDayItems = sortItemsChronologically(dayItems);
+                    // Get items for this day
+                    const dayItems = items.filter((item) =>
+                      isScheduledForDay(item, day) && filterTypes.has(item.itemType)
+                    );
+                    const sortedDayItems = sortItemsChronologically(dayItems);
 
-                  return (
-                    <div
-                      key={dayIndex}
-                      className={`p-3 min-h-[200px] ${
-                        isToday ? "bg-purple-50" : "bg-white"
-                      }`}
-                    >
-                      <div className="space-y-2">
-                        {sortedDayItems.map((item) => {
-                          // Check completion status based on item type:
-                          // - Recurring items (with scheduleType): check completions map for this date
-                          // - Non-recurring items: check isCompleted field
-                          const isRecurring = item.scheduleType && item.scheduleType !== "";
-                          const isCompleted = isRecurring
-                            ? (completions.get(dateStr)?.has(item.id) || false)
-                            : (item.isCompleted || false);
-                          const itemTime = getItemTime(item);
+                    return (
+                      <div
+                        key={dayIndex}
+                        className={`p-3 min-h-[200px] ${
+                          isToday ? "bg-purple-50" : "bg-white"
+                        }`}
+                      >
+                        <div className="space-y-2">
+                          {sortedDayItems.map((item) => {
+                            // Check completion status based on item type:
+                            // - Recurring items (with scheduleType): check completions map for this date
+                            // - Non-recurring items: check isCompleted field
+                            const isRecurring = item.scheduleType && item.scheduleType !== "";
+                            const isCompleted = isRecurring
+                              ? (completions.get(dateStr)?.has(item.id) || false)
+                              : (item.isCompleted || false);
+                            const itemTime = getItemTime(item);
 
-                          return (
-                            <div
-                              key={item.id}
-                              className={`text-sm border rounded-lg p-2 ${
-                                isCompleted
-                                  ? "border-green-300 bg-green-50"
-                                  : "border-gray-200 bg-white hover:border-purple-300"
-                              }`}
-                            >
-                              <div className="flex items-start gap-2 mb-2">
-                                <span className="text-sm">{getItemTypeIcon(item.itemType)}</span>
-                                <div className="flex-1 min-w-0">
-                                  <div
-                                    className={`font-medium text-xs break-words ${
-                                      isCompleted ? "text-gray-500 line-through" : "text-gray-900"
+                            return (
+                              <div
+                                key={item.id}
+                                className={`text-sm border rounded-lg p-2 ${
+                                  isCompleted
+                                    ? "border-green-300 bg-green-50"
+                                    : "border-gray-200 bg-white hover:border-purple-300"
+                                }`}
+                              >
+                                <div className="flex items-start gap-2 mb-2">
+                                  <span className="text-sm flex-shrink-0">{getItemTypeIcon(item.itemType)}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div
+                                      className={`font-medium text-xs break-words ${
+                                        isCompleted ? "text-gray-500 line-through" : "text-gray-900"
+                                      }`}
+                                    >
+                                      {item.name}
+                                    </div>
+                                    {itemTime && (
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        {itemTime.substring(0, 5)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => openEditModal(item)}
+                                    className="px-2 py-1 text-xs border border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded transition-colors flex-shrink-0"
+                                    title="Edit"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => toggleItem(item.id, day)}
+                                    className={`flex-1 px-2 py-1 text-xs rounded transition-colors whitespace-nowrap ${
+                                      isCompleted
+                                        ? "bg-green-500 text-white hover:bg-green-600"
+                                        : "border border-gray-300 hover:border-green-500 hover:bg-green-50"
                                     }`}
                                   >
-                                    {item.name}
-                                  </div>
-                                  {itemTime && (
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {itemTime.substring(0, 5)}
-                                    </div>
-                                  )}
+                                    {isCompleted ? "✓ Done" : "Complete"}
+                                  </button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <button
-                                  onClick={() => openEditModal(item)}
-                                  className="px-2 py-1 text-xs border border-gray-300 hover:border-blue-500 hover:bg-blue-50 rounded transition-colors"
-                                  title="Edit"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => toggleItem(item.id, day)}
-                                  className={`flex-1 px-2 py-1 text-xs rounded transition-colors ${
-                                    isCompleted
-                                      ? "bg-green-500 text-white hover:bg-green-600"
-                                      : "border border-gray-300 hover:border-green-500 hover:bg-green-50"
-                                  }`}
-                                >
-                                  {isCompleted ? "✓ Done" : "Complete"}
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}
@@ -641,7 +643,7 @@ export default function WeekView() {
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder={`e.g., ${selectedItemType === "habit" ? "Morning Exercise" : selectedItemType === "task" ? "Finish report" : "Doctor's appointment"}`}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                     autoFocus
                     maxLength={100}
                   />
@@ -656,7 +658,7 @@ export default function WeekView() {
                     type="time"
                     value={formTime}
                     onChange={(e) => setFormTime(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900"
                   />
                 </div>
 
@@ -669,7 +671,7 @@ export default function WeekView() {
                       type="date"
                       value={formDay}
                       onChange={(e) => setFormDay(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900"
                     />
                   </div>
                 )}
