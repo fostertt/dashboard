@@ -18,6 +18,10 @@ interface Item {
   completedAt?: string;
   isParent: boolean;
   parentItemId?: number;
+  priority?: string;
+  effort?: string;
+  duration?: string;
+  focus?: string;
 }
 
 interface Toast {
@@ -52,6 +56,10 @@ export default function Home() {
   const [formTime, setFormTime] = useState("");
   const [formDay, setFormDay] = useState("");
   const [formRecurring, setFormRecurring] = useState(false);
+  const [formPriority, setFormPriority] = useState("");
+  const [formEffort, setFormEffort] = useState("");
+  const [formDuration, setFormDuration] = useState("");
+  const [formFocus, setFormFocus] = useState("");
 
   const showToast = (message: string, type: Toast["type"] = "success") => {
     const id = Date.now();
@@ -137,6 +145,10 @@ export default function Home() {
     setFormTime("");
     setFormDay("");
     setFormRecurring(false);
+    setFormPriority("");
+    setFormEffort("");
+    setFormDuration("");
+    setFormFocus("");
     setShowAddMenu(false);
     setShowModal(true);
   };
@@ -159,6 +171,12 @@ export default function Home() {
 
     // Set recurring if scheduleType is daily
     setFormRecurring(item.scheduleType === "daily");
+
+    // Set metadata fields
+    setFormPriority(item.priority || "");
+    setFormEffort(item.effort || "");
+    setFormDuration(item.duration || "");
+    setFormFocus(item.focus || "");
 
     setShowModal(true);
   };
@@ -194,6 +212,14 @@ export default function Home() {
         if (formTime) itemData.dueTime = formTime;
         if (formDay) itemData.dueDate = formDay;
         if (formRecurring) itemData.scheduleType = "daily";
+      }
+
+      // Add metadata fields (for tasks and reminders)
+      if (selectedItemType === "task" || selectedItemType === "reminder") {
+        if (formPriority) itemData.priority = formPriority;
+        if (formEffort) itemData.effort = formEffort;
+        if (formDuration) itemData.duration = formDuration;
+        if (formFocus) itemData.focus = formFocus;
       }
 
       const response = await fetch("/api/items", {
@@ -242,6 +268,14 @@ export default function Home() {
         if (formTime) itemData.dueTime = formTime;
         if (formDay) itemData.dueDate = formDay;
         itemData.scheduleType = formRecurring ? "daily" : null;
+      }
+
+      // Add metadata fields (for tasks and reminders)
+      if (editingItem.itemType === "task" || editingItem.itemType === "reminder") {
+        itemData.priority = formPriority || null;
+        itemData.effort = formEffort || null;
+        itemData.duration = formDuration || null;
+        itemData.focus = formFocus || null;
       }
 
       const response = await fetch(`/api/items/${editingItem.id}`, {
@@ -545,8 +579,20 @@ export default function Home() {
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="text-xl">{getItemTypeIcon(item.itemType)}</span>
+                            {item.priority && (
+                              <span
+                                className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                                  item.priority === "high"
+                                    ? "bg-red-500"
+                                    : item.priority === "medium"
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
+                                }`}
+                                title={`${item.priority} priority`}
+                              />
+                            )}
                             <h3
                               className={`text-lg font-semibold ${
                                 isCompleted ? "text-gray-500 line-through" : "text-gray-900"
@@ -554,6 +600,15 @@ export default function Home() {
                             >
                               {item.name}
                             </h3>
+                            {(item.effort || item.duration || item.focus) && (
+                              <span className="text-xs text-gray-500">
+                                ({[
+                                  item.effort && item.effort.charAt(0).toUpperCase() + item.effort.slice(1),
+                                  item.duration && (item.duration === "quick" ? "Quick" : item.duration === "medium" ? "Medium" : "Long"),
+                                  item.focus && (item.focus === "deep" ? "Deep" : item.focus === "light" ? "Light" : "Background")
+                                ].filter(Boolean).join(", ")})
+                              </span>
+                            )}
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${getItemTypeColor(item.itemType)}`}>
                               {getItemTypeLabel(item.itemType)}
                             </span>
@@ -767,6 +822,78 @@ export default function Home() {
                     <span className="text-sm font-medium text-gray-700">Recurring (daily)</span>
                   </label>
                 </div>
+
+                {/* Metadata fields for tasks and reminders */}
+                {(selectedItemType === "task" || selectedItemType === "reminder") && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-200">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Priority
+                      </label>
+                      <select
+                        value={formPriority}
+                        onChange={(e) => setFormPriority(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900"
+                      >
+                        <option value="">None</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Effort
+                      </label>
+                      <select
+                        value={formEffort}
+                        onChange={(e) => setFormEffort(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900"
+                      >
+                        <option value="">None</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Duration
+                      </label>
+                      <select
+                        value={formDuration}
+                        onChange={(e) => setFormDuration(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900"
+                      >
+                        <option value="">None</option>
+                        <option value="quick">Quick (&lt;15min)</option>
+                        <option value="medium">Medium (15-60min)</option>
+                        <option value="long">Long (&gt;1hr)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Focus Required
+                      </label>
+                      <select
+                        value={formFocus}
+                        onChange={(e) => setFormFocus(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900"
+                      >
+                        <option value="">None</option>
+                        <option value="deep">Deep focus</option>
+                        <option value="light">Light focus</option>
+                        <option value="background">Background</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Deep = full attention, Light = can multitask, Background = set and forget
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 mt-6">

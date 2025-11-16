@@ -149,6 +149,9 @@ model Item {
   isDismissed        Boolean?             @map("is_dismissed")
   dismissedAt        DateTime?            @map("dismissed_at")
   priority           String?
+  effort             String?
+  duration           String?
+  focus              String?
   parentItemId       Int?                 @map("parent_item_id")
   isParent           Boolean              @map("is_parent")
   createdAt          DateTime?            @map("created_at")

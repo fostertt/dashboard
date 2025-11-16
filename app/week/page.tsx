@@ -19,6 +19,10 @@ interface Item {
   completedAt?: string;
   isParent: boolean;
   parentItemId?: number;
+  priority?: string;
+  effort?: string;
+  duration?: string;
+  focus?: string;
 }
 
 interface Toast {
@@ -544,6 +548,18 @@ export default function WeekView() {
                               >
                                 <div className="flex items-start gap-2 mb-2">
                                   <span className="text-sm flex-shrink-0">{getItemTypeIcon(item.itemType)}</span>
+                                  {item.priority && (
+                                    <span
+                                      className={`w-2 h-2 rounded-full flex-shrink-0 mt-1 ${
+                                        item.priority === "high"
+                                          ? "bg-red-500"
+                                          : item.priority === "medium"
+                                          ? "bg-yellow-500"
+                                          : "bg-green-500"
+                                      }`}
+                                      title={`${item.priority} priority`}
+                                    />
+                                  )}
                                   <div className="flex-1 min-w-0">
                                     <div
                                       className={`font-medium text-xs break-words ${
@@ -552,6 +568,15 @@ export default function WeekView() {
                                     >
                                       {item.name}
                                     </div>
+                                    {(item.effort || item.duration || item.focus) && (
+                                      <div className="text-xs text-gray-400 mt-0.5">
+                                        {[
+                                          item.effort && item.effort.charAt(0).toUpperCase() + item.effort.slice(1),
+                                          item.duration && (item.duration === "quick" ? "Quick" : item.duration === "medium" ? "Med" : "Long"),
+                                          item.focus && (item.focus === "deep" ? "Deep" : item.focus === "light" ? "Light" : "Bg")
+                                        ].filter(Boolean).join(", ")}
+                                      </div>
+                                    )}
                                     {itemTime && (
                                       <div className="text-xs text-gray-500 mt-1">
                                         {itemTime.substring(0, 5)}

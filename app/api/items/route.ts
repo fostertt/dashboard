@@ -83,6 +83,11 @@ export async function POST(request: NextRequest) {
       reminderDays,
       // Hierarchy
       parentItemId,
+      // Metadata fields
+      priority,
+      effort,
+      duration,
+      focus,
     } = body;
 
     // Validate required fields
@@ -122,6 +127,10 @@ export async function POST(request: NextRequest) {
         reminderDays,
         parentItemId,
         isParent: false,
+        priority: priority || null,
+        effort: effort || null,
+        duration: duration || null,
+        focus: focus || null,
       },
     });
 
