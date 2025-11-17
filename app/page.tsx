@@ -1155,12 +1155,9 @@ export default function Home() {
                   ) : (
                     <div className="space-y-3 max-h-48 overflow-y-auto">
                       {formSubItems.map((subItem, index) => {
-                        // Date validation
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+                        // Date validation - only warn if sub-task date is AFTER parent date
                         const parentDueDate = formDay ? new Date(formDay) : null;
                         const subItemDate = subItem.dueDate ? new Date(subItem.dueDate) : null;
-                        const isPastDate = subItemDate && subItemDate < today;
                         const isAfterParent = parentDueDate && subItemDate && subItemDate > parentDueDate;
 
                         return (
@@ -1188,13 +1185,12 @@ export default function Home() {
                                     updated[index] = { ...updated[index], dueDate: e.target.value || undefined };
                                     setFormSubItems(updated);
                                   }}
-                                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                                  className={`w-full px-2 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-sm ${
+                                    isAfterParent ? "border-red-500 text-red-500" : "border-gray-300 text-gray-900"
+                                  }`}
                                 />
-                                {isPastDate && (
-                                  <p className="text-xs text-red-600 mt-1">Past date</p>
-                                )}
                                 {isAfterParent && (
-                                  <p className="text-xs text-red-600 mt-1">After parent due date</p>
+                                  <p className="text-xs text-red-500 mt-1">After parent due date</p>
                                 )}
                               </div>
                             )}

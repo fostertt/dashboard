@@ -95,6 +95,9 @@ export default function WeekView() {
   const [formFocus, setFormFocus] = useState("");
   const [formSubItems, setFormSubItems] = useState<SubItem[]>([]);
 
+  // Track expanded items for sub-item display
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+
   // Week navigation functions
   const navigateToWeek = (date: Date) => {
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -540,6 +543,18 @@ export default function WeekView() {
     }
   };
 
+  const toggleExpanded = (itemId: number) => {
+    setExpandedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
   const weekDays = getWeekDays();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const today = new Date().toDateString();
@@ -757,6 +772,29 @@ export default function WeekView() {
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1">
+                                  {item.isParent && item.subItems && item.subItems.length > 0 && (
+                                    <button
+                                      onClick={() => toggleExpanded(item.id)}
+                                      className="w-5 h-5 flex items-center justify-center text-gray-500 hover:text-purple-600 transition-colors"
+                                      title={expandedItems.has(item.id) ? "Collapse" : "Expand"}
+                                    >
+                                      <svg
+                                        className={`w-3 h-3 transition-transform ${
+                                          expandedItems.has(item.id) ? "rotate-90" : ""
+                                        }`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M9 5l7 7-7 7"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => toggleItem(item.id, day)}
                                     className={`w-6 h-6 rounded-full border-2 transition-all flex items-center justify-center flex-shrink-0 ${
@@ -787,6 +825,66 @@ export default function WeekView() {
                                     Edit
                                   </button>
                                 </div>
+
+                                {/* Sub-items display */}
+                                {item.isParent &&
+                                  item.subItems &&
+                                  item.subItems.length > 0 &&
+                                  expandedItems.has(item.id) && (
+                                    <div className="mt-2 ml-2 space-y-1 border-l-2 border-purple-200 pl-2">
+                                      {item.subItems.map((subItem) => {
+                                        const subItemCompleted =
+                                          isRecurring
+                                            ? subItem.id
+                                              ? completions.get(dateStr)?.has(subItem.id) || false
+                                              : false
+                                            : subItem.isCompleted || false;
+
+                                        return (
+                                          <div
+                                            key={subItem.id}
+                                            className={`flex items-center gap-1 text-xs ${
+                                              subItemCompleted ? "text-gray-400" : "text-gray-700"
+                                            }`}
+                                          >
+                                            {subItem.id && (
+                                              <button
+                                                onClick={() => toggleItem(subItem.id!, day)}
+                                                className={`w-4 h-4 rounded-full border transition-all flex items-center justify-center flex-shrink-0 ${
+                                                  subItemCompleted
+                                                    ? "border-green-500 bg-green-500"
+                                                    : "border-gray-300 hover:border-green-500"
+                                                }`}
+                                              >
+                                                {subItemCompleted && (
+                                                  <svg
+                                                    className="w-2 h-2 text-white"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                  >
+                                                    <path
+                                                      strokeLinecap="round"
+                                                      strokeLinejoin="round"
+                                                      strokeWidth={3}
+                                                      d="M5 13l4 4L19 7"
+                                                    />
+                                                  </svg>
+                                                )}
+                                              </button>
+                                            )}
+                                            <span
+                                              className={
+                                                subItemCompleted ? "line-through" : ""
+                                              }
+                                            >
+                                              {subItem.name}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                               </div>
                             );
                           })}
@@ -997,12 +1095,9 @@ export default function WeekView() {
                   ) : (
                     <div className="space-y-3 max-h-48 overflow-y-auto">
                       {formSubItems.map((subItem, index) => {
-                        // Date validation
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+                        // Date validation - only warn if sub-task date is AFTER parent date
                         const parentDueDate = formDay ? new Date(formDay) : null;
                         const subItemDate = subItem.dueDate ? new Date(subItem.dueDate) : null;
-                        const isPastDate = subItemDate && subItemDate < today;
                         const isAfterParent = parentDueDate && subItemDate && subItemDate > parentDueDate;
 
                         return (
@@ -1030,13 +1125,12 @@ export default function WeekView() {
                                     updated[index] = { ...updated[index], dueDate: e.target.value || undefined };
                                     setFormSubItems(updated);
                                   }}
-                                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                                  className={`w-full px-2 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-sm ${
+                                    isAfterParent ? "border-red-500 text-red-500" : "border-gray-300 text-gray-900"
+                                  }`}
                                 />
-                                {isPastDate && (
-                                  <p className="text-xs text-red-600 mt-1">Past date</p>
-                                )}
                                 {isAfterParent && (
-                                  <p className="text-xs text-red-600 mt-1">After parent due date</p>
+                                  <p className="text-xs text-red-500 mt-1">After parent due date</p>
                                 )}
                               </div>
                             )}
