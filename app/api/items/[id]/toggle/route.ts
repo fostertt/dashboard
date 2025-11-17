@@ -37,6 +37,13 @@ export async function POST(
         id: itemId,
         userId,
       },
+      include: {
+        subItems: {
+          include: {
+            completions: true,
+          },
+        },
+      },
     });
 
     if (!item) {
@@ -68,6 +75,29 @@ export async function POST(
 
         return NextResponse.json({ completed: false });
       } else {
+        // Check if this is a parent with incomplete sub-items
+        if (item.isParent && item.subItems && item.subItems.length > 0) {
+          // For recurring items, check if all sub-items have completions for this date
+          const incompleteSubItems = item.subItems.filter((subItem) => {
+            const hasCompletionForDate = subItem.completions.some(
+              (c) =>
+                new Date(c.completionDate).toDateString() ===
+                completionDate.toDateString()
+            );
+            return !hasCompletionForDate;
+          });
+
+          if (incompleteSubItems.length > 0) {
+            return NextResponse.json(
+              {
+                error: "Cannot complete parent item until all sub-items are completed",
+                incompleteCount: incompleteSubItems.length,
+              },
+              { status: 400 }
+            );
+          }
+        }
+
         // Add completion
         await prisma.itemCompletion.create({
           data: {
@@ -81,6 +111,28 @@ export async function POST(
     } else {
       // For non-recurring items (tasks/reminders): toggle isCompleted field
       const newCompletedState = !item.isCompleted;
+
+      // Check if this is a parent with incomplete sub-items (only when trying to complete)
+      if (
+        newCompletedState &&
+        item.isParent &&
+        item.subItems &&
+        item.subItems.length > 0
+      ) {
+        const incompleteSubItems = item.subItems.filter(
+          (subItem) => !subItem.isCompleted
+        );
+
+        if (incompleteSubItems.length > 0) {
+          return NextResponse.json(
+            {
+              error: "Cannot complete parent item until all sub-items are completed",
+              incompleteCount: incompleteSubItems.length,
+            },
+            { status: 400 }
+          );
+        }
+      }
 
       await prisma.item.update({
         where: { id: itemId },

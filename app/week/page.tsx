@@ -6,6 +6,14 @@ import { useSearchParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
 
+interface SubItem {
+  id?: number;
+  name: string;
+  dueDate?: string;
+  isCompleted?: boolean;
+  completions?: Array<{ completionDate: string }>;
+}
+
 interface Item {
   id: number;
   itemType: "habit" | "task" | "reminder";
@@ -24,6 +32,8 @@ interface Item {
   effort?: string;
   duration?: string;
   focus?: string;
+  subItems?: SubItem[];
+  completions?: Array<{ completionDate: string }>;
 }
 
 interface Toast {
@@ -83,6 +93,7 @@ export default function WeekView() {
   const [formEffort, setFormEffort] = useState("");
   const [formDuration, setFormDuration] = useState("");
   const [formFocus, setFormFocus] = useState("");
+  const [formSubItems, setFormSubItems] = useState<SubItem[]>([]);
 
   // Week navigation functions
   const navigateToWeek = (date: Date) => {
@@ -197,6 +208,14 @@ export default function WeekView() {
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.error && errorData.incompleteCount) {
+          showToast(
+            `Complete all ${errorData.incompleteCount} sub-items first`,
+            "error"
+          );
+          return;
+        }
         throw new Error("Failed to toggle item");
       }
 
@@ -236,6 +255,7 @@ export default function WeekView() {
     setFormEffort("");
     setFormDuration("");
     setFormFocus("");
+    setFormSubItems([]);
     setShowAddMenu(false);
     setShowModal(true);
   };
@@ -265,6 +285,15 @@ export default function WeekView() {
     setFormDuration(item.duration || "");
     setFormFocus(item.focus || "");
 
+    // Load sub-items
+    setFormSubItems(
+      item.subItems?.map((si) => ({
+        id: si.id,
+        name: si.name,
+        dueDate: si.dueDate ? si.dueDate.split("T")[0] : undefined,
+      })) || []
+    );
+
     setShowModal(true);
   };
 
@@ -288,6 +317,7 @@ export default function WeekView() {
         effort: formEffort || null,
         duration: formDuration || null,
         focus: formFocus || null,
+        subItems: formSubItems.filter((si) => si.name.trim()),
       };
 
       // Set time and date based on item type
@@ -340,6 +370,7 @@ export default function WeekView() {
         effort: formEffort || null,
         duration: formDuration || null,
         focus: formFocus || null,
+        subItems: formSubItems.filter((si) => si.name.trim()),
       };
 
       // Set time and date based on item type
@@ -700,6 +731,11 @@ export default function WeekView() {
                                     >
                                       {item.name}
                                     </div>
+                                    {item.isParent && item.subItems && item.subItems.length > 0 && (
+                                      <div className="text-xs text-blue-600 mt-0.5">
+                                        {item.subItems.length} sub-{item.itemType === "habit" ? "habits" : item.itemType === "task" ? "tasks" : "items"}
+                                      </div>
+                                    )}
                                     {(item.effort || item.duration || item.focus) && (
                                       <div className="text-xs text-gray-400 mt-0.5">
                                         (
@@ -934,6 +970,94 @@ export default function WeekView() {
                       Deep = full attention, Light = can multitask, Background = set and forget
                     </p>
                   </div>
+                </div>
+
+                {/* Sub-Items Section */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Sub-{selectedItemType === "habit" ? "Habits" : selectedItemType === "task" ? "Tasks" : "Items"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormSubItems([...formSubItems, { name: "", dueDate: undefined }])
+                      }
+                      className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Sub-{selectedItemType === "habit" ? "Habit" : selectedItemType === "task" ? "Task" : "Item"}
+                    </button>
+                  </div>
+
+                  {formSubItems.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">No sub-items added yet</p>
+                  ) : (
+                    <div className="space-y-3 max-h-48 overflow-y-auto">
+                      {formSubItems.map((subItem, index) => {
+                        // Date validation
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const parentDueDate = formDay ? new Date(formDay) : null;
+                        const subItemDate = subItem.dueDate ? new Date(subItem.dueDate) : null;
+                        const isPastDate = subItemDate && subItemDate < today;
+                        const isAfterParent = parentDueDate && subItemDate && subItemDate > parentDueDate;
+
+                        return (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={subItem.name}
+                                onChange={(e) => {
+                                  const updated = [...formSubItems];
+                                  updated[index] = { ...updated[index], name: e.target.value };
+                                  setFormSubItems(updated);
+                                }}
+                                placeholder={`Sub-${selectedItemType} name`}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                              />
+                            </div>
+                            {(selectedItemType === "task" || selectedItemType === "reminder") && (
+                              <div className="w-36">
+                                <input
+                                  type="date"
+                                  value={subItem.dueDate || ""}
+                                  onChange={(e) => {
+                                    const updated = [...formSubItems];
+                                    updated[index] = { ...updated[index], dueDate: e.target.value || undefined };
+                                    setFormSubItems(updated);
+                                  }}
+                                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                                />
+                                {isPastDate && (
+                                  <p className="text-xs text-red-600 mt-1">Past date</p>
+                                )}
+                                {isAfterParent && (
+                                  <p className="text-xs text-red-600 mt-1">After parent due date</p>
+                                )}
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = formSubItems.filter((_, i) => i !== index);
+                                setFormSubItems(updated);
+                              }}
+                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove sub-item"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -80,6 +80,10 @@ export async function PATCH(
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
+    // Handle sub-items if provided
+    const subItems = body.subItems;
+    const hasSubItems = Array.isArray(subItems) && subItems.length > 0;
+
     // Update the item
     const updatedItem = await prisma.item.update({
       where: { id: itemId },
@@ -102,10 +106,92 @@ export async function PATCH(
         effort: body.effort || null,
         duration: body.duration || null,
         focus: body.focus || null,
+        isParent: hasSubItems,
       },
     });
 
-    return NextResponse.json(updatedItem);
+    // Manage sub-items if provided
+    if (Array.isArray(subItems)) {
+      // Get existing sub-items
+      const existingSubItems = await prisma.item.findMany({
+        where: { parentItemId: itemId },
+      });
+
+      const existingSubItemIds = existingSubItems.map((si) => si.id);
+      const providedSubItemIds = subItems
+        .filter((si: any) => si.id)
+        .map((si: any) => si.id);
+
+      // Delete sub-items that are no longer in the list
+      const subItemsToDelete = existingSubItemIds.filter(
+        (id) => !providedSubItemIds.includes(id)
+      );
+      if (subItemsToDelete.length > 0) {
+        // Delete completions first
+        await prisma.itemCompletion.deleteMany({
+          where: { itemId: { in: subItemsToDelete } },
+        });
+        await prisma.item.deleteMany({
+          where: { id: { in: subItemsToDelete } },
+        });
+      }
+
+      // Update or create sub-items
+      for (const subItem of subItems) {
+        if (subItem.id) {
+          // Update existing sub-item
+          await prisma.item.update({
+            where: { id: subItem.id },
+            data: {
+              name: subItem.name?.trim() || "",
+              dueDate: subItem.dueDate ? new Date(subItem.dueDate) : null,
+            },
+          });
+        } else if (subItem.name && subItem.name.trim()) {
+          // Create new sub-item
+          await prisma.item.create({
+            data: {
+              userId,
+              itemType: existingItem.itemType,
+              name: subItem.name.trim(),
+              parentItemId: itemId,
+              isParent: false,
+              dueDate: subItem.dueDate ? new Date(subItem.dueDate) : null,
+              priority: null,
+              effort: null,
+              duration: null,
+              focus: null,
+              scheduleType:
+                existingItem.itemType === "habit"
+                  ? existingItem.scheduleType
+                  : null,
+              scheduleDays:
+                existingItem.itemType === "habit"
+                  ? existingItem.scheduleDays
+                  : null,
+            },
+          });
+        }
+      }
+    }
+
+    // Fetch the updated item with sub-items
+    const itemWithSubItems = await prisma.item.findUnique({
+      where: { id: itemId },
+      include: {
+        completions: true,
+        subItems: {
+          include: {
+            completions: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(itemWithSubItems);
   } catch (error) {
     console.error("Error updating item:", error);
     return NextResponse.json(

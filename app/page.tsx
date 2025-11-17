@@ -5,6 +5,14 @@ import { useSearchParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
 
+interface SubItem {
+  id?: number;
+  name: string;
+  dueDate?: string;
+  isCompleted?: boolean;
+  completions?: Array<{ completionDate: string }>;
+}
+
 interface Item {
   id: number;
   itemType: "habit" | "task" | "reminder";
@@ -23,6 +31,8 @@ interface Item {
   effort?: string;
   duration?: string;
   focus?: string;
+  subItems?: SubItem[];
+  completions?: Array<{ completionDate: string }>;
 }
 
 interface Toast {
@@ -75,6 +85,10 @@ export default function Home() {
   const [formEffort, setFormEffort] = useState("");
   const [formDuration, setFormDuration] = useState("");
   const [formFocus, setFormFocus] = useState("");
+  const [formSubItems, setFormSubItems] = useState<SubItem[]>([]);
+
+  // Track expanded items for sub-item display
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
 
   // Date navigation functions
   const navigateToDate = (date: Date) => {
@@ -176,6 +190,14 @@ export default function Home() {
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.error && errorData.incompleteCount) {
+          showToast(
+            `Complete all ${errorData.incompleteCount} sub-items first`,
+            "error"
+          );
+          return;
+        }
         throw new Error("Failed to toggle item");
       }
 
@@ -211,6 +233,7 @@ export default function Home() {
     setFormEffort("");
     setFormDuration("");
     setFormFocus("");
+    setFormSubItems([]);
     setShowAddMenu(false);
     setShowModal(true);
   };
@@ -240,6 +263,15 @@ export default function Home() {
     setFormDuration(item.duration || "");
     setFormFocus(item.focus || "");
 
+    // Load sub-items
+    setFormSubItems(
+      item.subItems?.map((si) => ({
+        id: si.id,
+        name: si.name,
+        dueDate: si.dueDate ? si.dueDate.split("T")[0] : undefined,
+      })) || []
+    );
+
     setShowModal(true);
   };
 
@@ -263,6 +295,7 @@ export default function Home() {
         effort: formEffort || null,
         duration: formDuration || null,
         focus: formFocus || null,
+        subItems: formSubItems.filter((si) => si.name.trim()),
       };
 
       // Set time and date based on item type
@@ -316,6 +349,7 @@ export default function Home() {
         effort: formEffort || null,
         duration: formDuration || null,
         focus: formFocus || null,
+        subItems: formSubItems.filter((si) => si.name.trim()),
       };
 
       // Set time and date based on item type
@@ -476,6 +510,24 @@ export default function Home() {
       case "reminder":
         return "bg-yellow-100 text-yellow-700";
     }
+  };
+
+  const toggleExpanded = (itemId: number) => {
+    setExpandedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
+  };
+
+  const isSubItemCompletedForDate = (subItem: SubItem, date: Date) => {
+    if (!subItem.completions) return false;
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return subItem.completions.some((c) => c.completionDate.startsWith(dateStr));
   };
 
   return (
@@ -710,14 +762,9 @@ export default function Home() {
                             <span className={`text-xs px-2 py-1 rounded-full font-medium ${getItemTypeColor(item.itemType)}`}>
                               {getItemTypeLabel(item.itemType)}
                             </span>
-                            {item.isParent && (
+                            {item.isParent && item.subItems && item.subItems.length > 0 && (
                               <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
-                                Parent
-                              </span>
-                            )}
-                            {item.parentItemId && (
-                              <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
-                                Sub-task
+                                {item.subItems.length} sub-{item.itemType === "habit" ? "habits" : item.itemType === "task" ? "tasks" : "items"}
                               </span>
                             )}
                           </div>
@@ -768,6 +815,29 @@ export default function Home() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          {item.isParent && item.subItems && item.subItems.length > 0 && (
+                            <button
+                              onClick={() => toggleExpanded(item.id)}
+                              className="w-8 h-8 rounded-lg border border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-colors flex items-center justify-center"
+                              title={expandedItems.has(item.id) ? "Collapse" : "Expand"}
+                            >
+                              <svg
+                                className={`w-4 h-4 text-gray-600 transition-transform ${
+                                  expandedItems.has(item.id) ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 9l-7 7-7-7"
+                                />
+                              </svg>
+                            </button>
+                          )}
                           <button
                             onClick={() => openEditModal(item)}
                             className="w-8 h-8 rounded-lg border border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-colors flex items-center justify-center"
@@ -811,6 +881,75 @@ export default function Home() {
                           </button>
                         </div>
                       </div>
+
+                      {/* Sub-items display */}
+                      {item.isParent &&
+                        item.subItems &&
+                        item.subItems.length > 0 &&
+                        expandedItems.has(item.id) && (
+                          <div className="mt-4 ml-8 space-y-2 border-l-2 border-purple-200 pl-4">
+                            {item.subItems.map((subItem) => {
+                              const subItemCompleted =
+                                isRecurring
+                                  ? subItem.id
+                                    ? completedToday.has(subItem.id)
+                                    : false
+                                  : subItem.isCompleted || false;
+
+                              return (
+                                <div
+                                  key={subItem.id}
+                                  className={`flex items-center justify-between p-3 rounded-lg ${
+                                    subItemCompleted
+                                      ? "bg-green-50 border border-green-200"
+                                      : "bg-gray-50 border border-gray-200"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span
+                                      className={`text-sm font-medium ${
+                                        subItemCompleted ? "text-gray-500 line-through" : "text-gray-900"
+                                      }`}
+                                    >
+                                      {subItem.name}
+                                    </span>
+                                    {subItem.dueDate && (
+                                      <span className="text-xs text-gray-500">
+                                        Due: {new Date(subItem.dueDate).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {subItem.id && (
+                                    <button
+                                      onClick={() => toggleItem(subItem.id!)}
+                                      className={`w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center ${
+                                        subItemCompleted
+                                          ? "border-green-500 bg-green-500 hover:bg-green-600"
+                                          : "border-gray-300 hover:border-green-500 hover:bg-green-50"
+                                      }`}
+                                    >
+                                      <svg
+                                        className={`w-4 h-4 ${
+                                          subItemCompleted ? "text-white" : "text-gray-400"
+                                        }`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M5 13l4 4L19 7"
+                                        />
+                                      </svg>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                     </div>
                   );
                 })}
@@ -989,6 +1128,94 @@ export default function Home() {
                       Deep = full attention, Light = can multitask, Background = set and forget
                     </p>
                   </div>
+                </div>
+
+                {/* Sub-Items Section */}
+                <div className="border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Sub-{selectedItemType === "habit" ? "Habits" : selectedItemType === "task" ? "Tasks" : "Items"}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormSubItems([...formSubItems, { name: "", dueDate: undefined }])
+                      }
+                      className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Sub-{selectedItemType === "habit" ? "Habit" : selectedItemType === "task" ? "Task" : "Item"}
+                    </button>
+                  </div>
+
+                  {formSubItems.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">No sub-items added yet</p>
+                  ) : (
+                    <div className="space-y-3 max-h-48 overflow-y-auto">
+                      {formSubItems.map((subItem, index) => {
+                        // Date validation
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const parentDueDate = formDay ? new Date(formDay) : null;
+                        const subItemDate = subItem.dueDate ? new Date(subItem.dueDate) : null;
+                        const isPastDate = subItemDate && subItemDate < today;
+                        const isAfterParent = parentDueDate && subItemDate && subItemDate > parentDueDate;
+
+                        return (
+                          <div key={index} className="flex items-start gap-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                value={subItem.name}
+                                onChange={(e) => {
+                                  const updated = [...formSubItems];
+                                  updated[index] = { ...updated[index], name: e.target.value };
+                                  setFormSubItems(updated);
+                                }}
+                                placeholder={`Sub-${selectedItemType} name`}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                              />
+                            </div>
+                            {(selectedItemType === "task" || selectedItemType === "reminder") && (
+                              <div className="w-36">
+                                <input
+                                  type="date"
+                                  value={subItem.dueDate || ""}
+                                  onChange={(e) => {
+                                    const updated = [...formSubItems];
+                                    updated[index] = { ...updated[index], dueDate: e.target.value || undefined };
+                                    setFormSubItems(updated);
+                                  }}
+                                  className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
+                                />
+                                {isPastDate && (
+                                  <p className="text-xs text-red-600 mt-1">Past date</p>
+                                )}
+                                {isAfterParent && (
+                                  <p className="text-xs text-red-600 mt-1">After parent due date</p>
+                                )}
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = formSubItems.filter((_, i) => i !== index);
+                                setFormSubItems(updated);
+                              }}
+                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove sub-item"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
