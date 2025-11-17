@@ -26,6 +26,7 @@ model User {
   accounts          Account[]
   sessions          Session[]
   familyUsers       FamilyUser[]
+  lists             List[]
 
   @@map("users")
 }
@@ -164,6 +165,7 @@ model Item {
   parent             Item?                @relation("ItemHierarchy", fields: [parentItemId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   subItems           Item[]               @relation("ItemHierarchy")
   user               User                 @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  listItem           ListItem?            @relation("ListItemTask")
 
   @@index([parentItemId])
   @@map("items")
@@ -190,4 +192,35 @@ model flask_dance_oauth {
   users               User?               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([user_id, browser_session_key, provider], map: "sqlite_autoindex_flask_dance_oauth_1")
+}
+
+model List {
+  id             Int        @id @default(autoincrement())
+  userId         String     @map("user_id")
+  name           String
+  listType       String     @map("list_type")
+  filterCriteria String?    @map("filter_criteria")
+  color          String?
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  items          ListItem[]
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("lists")
+}
+
+model ListItem {
+  id        Int      @id @default(autoincrement())
+  listId    Int      @map("list_id")
+  text      String
+  isChecked Boolean  @default(false) @map("is_checked")
+  taskId    Int?     @unique @map("task_id")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  task      Item?    @relation("ListItemTask", fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([listId])
+  @@map("list_items")
 }

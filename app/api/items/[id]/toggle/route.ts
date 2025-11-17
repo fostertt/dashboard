@@ -43,6 +43,7 @@ export async function POST(
             completions: true,
           },
         },
+        listItem: true,
       },
     });
 
@@ -141,6 +142,14 @@ export async function POST(
           completedAt: newCompletedState ? new Date().toISOString() : null,
         },
       });
+
+      // Sync with linked list item if exists
+      if (item.listItem) {
+        await prisma.listItem.update({
+          where: { id: item.listItem.id },
+          data: { isChecked: newCompletedState },
+        });
+      }
 
       return NextResponse.json({ completed: newCompletedState });
     }
