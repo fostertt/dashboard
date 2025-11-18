@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
+import EventDetailModal from "@/components/EventDetailModal";
 
 interface Item {
   id: number;
@@ -24,16 +25,32 @@ interface Item {
   focus?: string;
 }
 
+interface CalendarEvent {
+  id: string;
+  source: "google" | "lifeos";
+  calendarId: string;
+  calendarName: string;
+  calendarColor: string;
+  title: string;
+  description?: string;
+  location?: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  timezone: string;
+}
+
 interface Toast {
   id: number;
   message: string;
   type: "success" | "error" | "info";
 }
 
-type ItemType = "habit" | "task" | "reminder";
+type ItemType = "habit" | "task" | "reminder" | "event";
 
 export default function Home() {
   const [items, setItems] = useState<Item[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedToday, setCompletedToday] = useState<Set<number>>(new Set());
@@ -47,9 +64,10 @@ export default function Home() {
   const [deletingItem, setDeletingItem] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [filterTypes, setFilterTypes] = useState<Set<ItemType>>(
-    new Set(["habit", "task", "reminder"])
+    new Set(["habit", "task", "reminder", "event"])
   );
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   // Form fields
   const [formName, setFormName] = useState("");
@@ -95,6 +113,25 @@ export default function Home() {
 
       if (completionsData.completedHabitIds) {
         setCompletedToday(new Set(completionsData.completedHabitIds));
+      }
+
+      // Fetch today's calendar events
+      try {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
+        const eventsRes = await fetch(`/api/calendar/events?startDate=${today}&endDate=${tomorrowStr}`);
+        if (eventsRes.ok) {
+          const eventsData = await eventsRes.json();
+          setEvents(Array.isArray(eventsData) ? eventsData : []);
+        } else {
+          // If calendar API fails, just set empty events (user might not have connected calendar yet)
+          setEvents([]);
+        }
+      } catch (eventsErr) {
+        console.error("Error loading calendar events:", eventsErr);
+        setEvents([]);
       }
 
       setLoading(false);
@@ -383,8 +420,22 @@ export default function Home() {
     });
   };
 
+  // Combine items and events for display
   const todayItems = items.filter(isScheduledToday);
   const filteredItems = todayItems.filter((item) => filterTypes.has(item.itemType));
+
+  // Filter events based on filter settings
+  const filteredEvents = filterTypes.has("event") ? events : [];
+
+  // Separate all-day events
+  const allDayEvents = filteredEvents.filter((e) => e.isAllDay);
+  const timedEvents = filteredEvents.filter((e) => !e.isAllDay);
+
+  // Sort timed events by start time
+  const sortedTimedEvents = [...timedEvents].sort((a, b) => {
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+  });
+
   const sortedItems = sortItemsChronologically(filteredItems);
 
   const getItemTypeLabel = (type: ItemType) => {
@@ -399,6 +450,8 @@ export default function Home() {
         return "✅";
       case "reminder":
         return "🔔";
+      case "event":
+        return "📅";
     }
   };
 
@@ -410,6 +463,8 @@ export default function Home() {
         return "bg-blue-100 text-blue-700";
       case "reminder":
         return "bg-yellow-100 text-yellow-700";
+      case "event":
+        return "bg-green-100 text-green-700";
     }
   };
 
@@ -495,7 +550,7 @@ export default function Home() {
 
                 {showFilterMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
-                    {(["habit", "task", "reminder"] as ItemType[]).map((type) => (
+                    {(["habit", "task", "reminder", "event"] as ItemType[]).map((type) => (
                       <button
                         key={type}
                         onClick={() => toggleFilter(type)}
@@ -522,7 +577,7 @@ export default function Home() {
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
               </div>
-            ) : sortedItems.length === 0 ? (
+            ) : sortedItems.length === 0 && filteredEvents.length === 0 ? (
               <div className="text-center py-16">
                 <div className="flex justify-center mb-4">
                   <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
@@ -550,6 +605,39 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid gap-4">
+                {/* All-day events section */}
+                {allDayEvents.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-gray-600 mb-2">All Day</h3>
+                    {allDayEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        onClick={() => setSelectedEvent(event)}
+                        className="border-2 rounded-xl p-4 mb-2 cursor-pointer hover:shadow-md transition-all duration-200 border-gray-100 bg-gradient-to-r from-white to-gray-50 hover:border-purple-300"
+                        style={{ borderLeftWidth: '4px', borderLeftColor: event.calendarColor }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="text-xl">📅</span>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
+                            <p className="text-sm text-gray-600">{event.calendarName}</p>
+                            {event.location && (
+                              <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                {event.location}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Timed events and items mixed chronologically */}
                 {sortedItems.map((item) => {
                   // Check completion status based on item type:
                   // - Recurring items (with scheduleType): check completedToday set
@@ -712,10 +800,81 @@ export default function Home() {
                     </div>
                   );
                 })}
+
+                {/* Timed events */}
+                {sortedTimedEvents.map((event) => {
+                  const formatTime = (dateTimeStr: string) => {
+                    const date = new Date(dateTimeStr);
+                    return date.toLocaleTimeString("en-US", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+                  };
+
+                  return (
+                    <div
+                      key={event.id}
+                      onClick={() => setSelectedEvent(event)}
+                      className="border-2 rounded-xl p-5 cursor-pointer hover:shadow-md transition-all duration-200 border-gray-100 bg-gradient-to-r from-white to-gray-50 hover:border-purple-300"
+                      style={{ borderLeftWidth: '4px', borderLeftColor: event.calendarColor }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xl">📅</span>
+                            <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
+                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-green-100 text-green-700">
+                              Event
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-sm">
+                            <span className="flex items-center gap-2 text-gray-700">
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              <span>{formatTime(event.startTime)} - {formatTime(event.endTime)}</span>
+                            </span>
+
+                            <span className="text-gray-600">{event.calendarName}</span>
+
+                            {event.location && (
+                              <span className="flex items-center gap-1 text-gray-600">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                {event.location}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
+
+        {/* Event Detail Modal */}
+        {selectedEvent && (
+          <EventDetailModal
+            event={selectedEvent}
+            onClose={() => setSelectedEvent(null)}
+          />
+        )}
 
         {/* Universal Add Button */}
         <div className="fixed bottom-8 right-8 z-50">

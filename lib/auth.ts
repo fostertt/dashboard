@@ -9,6 +9,19 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: [
+            "openid",
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/calendar.readonly",
+            "https://www.googleapis.com/auth/calendar.events",
+          ].join(" "),
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
     }),
   ],
   callbacks: {
@@ -26,15 +39,37 @@ export const authOptions: NextAuthOptions = {
 
       if (session.user && user) {
         session.user.id = user.id;
+
+        // Fetch the Google account to get the access token
+        const account = await prisma.account.findFirst({
+          where: {
+            userId: user.id,
+            provider: "google",
+          },
+          select: {
+            access_token: true,
+          },
+        });
+
+        if (account?.access_token) {
+          (session as any).accessToken = account.access_token;
+        }
       }
 
       console.log("   Final session:", session);
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       console.log("🎫 [NextAuth] jwt callback triggered");
       console.log("   Token:", token);
       console.log("   User:", user);
+      console.log("   Account:", account);
+
+      // Store access token from account in JWT
+      if (account?.access_token) {
+        token.accessToken = account.access_token;
+      }
+
       return token;
     },
   },

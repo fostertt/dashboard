@@ -4,6 +4,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Header from "@/components/Header";
+import EventDetailModal from "@/components/EventDetailModal";
 
 interface Item {
   id: number;
@@ -25,16 +26,32 @@ interface Item {
   focus?: string;
 }
 
+interface CalendarEvent {
+  id: string;
+  source: "google" | "lifeos";
+  calendarId: string;
+  calendarName: string;
+  calendarColor: string;
+  title: string;
+  description?: string;
+  location?: string;
+  startTime: string;
+  endTime: string;
+  isAllDay: boolean;
+  timezone: string;
+}
+
 interface Toast {
   id: number;
   message: string;
   type: "success" | "error" | "info";
 }
 
-type ItemType = "habit" | "task" | "reminder";
+type ItemType = "habit" | "task" | "reminder" | "event";
 
 export default function WeekView() {
   const [items, setItems] = useState<Item[]>([]);
+  const [events, setEvents] = useState<Map<string, CalendarEvent[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [completions, setCompletions] = useState<Map<string, Set<number>>>(new Map());
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -47,10 +64,11 @@ export default function WeekView() {
   const [deletingItem, setDeletingItem] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [filterTypes, setFilterTypes] = useState<Set<ItemType>>(
-    new Set(["habit", "task", "reminder"])
+    new Set(["habit", "task", "reminder", "event"])
   );
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
   // Form fields
   const [formName, setFormName] = useState("");
@@ -100,6 +118,36 @@ export default function WeekView() {
       );
 
       setCompletions(completionsMap);
+
+      // Fetch events for the entire week
+      try {
+        const startDate = weekDays[0].toISOString().split("T")[0];
+        const endDate = new Date(weekDays[6]);
+        endDate.setDate(endDate.getDate() + 1);
+        const endDateStr = endDate.toISOString().split("T")[0];
+
+        const eventsRes = await fetch(`/api/calendar/events?startDate=${startDate}&endDate=${endDateStr}`);
+        if (eventsRes.ok) {
+          const eventsData = await eventsRes.json();
+
+          // Group events by date
+          const eventsMap = new Map<string, CalendarEvent[]>();
+          for (const event of eventsData) {
+            const eventDate = new Date(event.startTime).toISOString().split("T")[0];
+            if (!eventsMap.has(eventDate)) {
+              eventsMap.set(eventDate, []);
+            }
+            eventsMap.get(eventDate)!.push(event);
+          }
+          setEvents(eventsMap);
+        } else {
+          setEvents(new Map());
+        }
+      } catch (eventsErr) {
+        console.error("Error loading calendar events:", eventsErr);
+        setEvents(new Map());
+      }
+
       setLoading(false);
     } catch (err) {
       console.error("Error loading data:", err);
@@ -422,6 +470,8 @@ export default function WeekView() {
         return "✅";
       case "reminder":
         return "🔔";
+      case "event":
+        return "📅";
     }
   };
 
@@ -433,6 +483,8 @@ export default function WeekView() {
         return "bg-blue-100 text-blue-700";
       case "reminder":
         return "bg-yellow-100 text-yellow-700";
+      case "event":
+        return "bg-green-100 text-green-700";
     }
   };
 
@@ -477,7 +529,7 @@ export default function WeekView() {
 
               {showFilterMenu && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
-                  {(["habit", "task", "reminder"] as ItemType[]).map((type) => (
+                  {(["habit", "task", "reminder", "event"] as ItemType[]).map((type) => (
                     <button
                       key={type}
                       onClick={() => toggleFilter(type)}
@@ -644,6 +696,42 @@ export default function WeekView() {
                               </div>
                             );
                           })}
+
+                          {/* Display events for this day */}
+                          {filterTypes.has("event") && events.get(dateStr)?.map((event) => {
+                            const formatTime = (dateTimeStr: string) => {
+                              const date = new Date(dateTimeStr);
+                              return date.toLocaleTimeString("en-US", {
+                                hour: "numeric",
+                                minute: "2-digit",
+                              });
+                            };
+
+                            return (
+                              <div
+                                key={event.id}
+                                onClick={() => setSelectedEvent(event)}
+                                className="text-sm border rounded-lg p-2 cursor-pointer border-gray-200 bg-white hover:border-purple-300"
+                                style={{ borderLeftWidth: '3px', borderLeftColor: event.calendarColor }}
+                              >
+                                <div className="flex items-start gap-2 mb-1">
+                                  <span className="text-sm flex-shrink-0">📅</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-xs break-words text-gray-900">
+                                      {event.title}
+                                    </div>
+                                    {event.isAllDay ? (
+                                      <div className="text-xs text-gray-500 mt-0.5">All Day</div>
+                                    ) : (
+                                      <div className="text-xs text-gray-500 mt-0.5">
+                                        {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -653,6 +741,14 @@ export default function WeekView() {
             </div>
           )}
         </div>
+
+        {/* Event Detail Modal */}
+        {selectedEvent && (
+          <EventDetailModal
+            event={selectedEvent}
+            onClose={() => setSelectedEvent(null)}
+          />
+        )}
 
         {/* Universal Add Button */}
         <div className="fixed bottom-8 right-8 z-50">
