@@ -53,54 +53,57 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Fetch events from Google Calendar
-    const calendar = await getCalendarClient();
     const googleEvents: CalendarEvent[] = [];
 
-    await Promise.all(
-      enabledCalendars.map(async (calendarSync) => {
-        try {
-          const response = await calendar.events.list({
-            calendarId: calendarSync.calendarId,
-            timeMin: timeMin.toISOString(),
-            timeMax: timeMax.toISOString(),
-            singleEvents: true,
-            orderBy: 'startTime',
-          });
+    // Only attempt Google Calendar fetch when a calendar is enabled
+    if (enabledCalendars.length > 0) {
+      const calendar = await getCalendarClient();
 
-          const events = response.data.items || [];
-
-          events.forEach((event) => {
-            if (!event.id || !event.start || !event.end) return;
-
-            const isAllDay = !!event.start.date;
-            const startTime = event.start.dateTime || event.start.date || '';
-            const endTime = event.end.dateTime || event.end.date || '';
-
-            googleEvents.push({
-              id: event.id,
-              source: 'google',
+      await Promise.all(
+        enabledCalendars.map(async (calendarSync) => {
+          try {
+            const response = await calendar.events.list({
               calendarId: calendarSync.calendarId,
-              calendarName: calendarSync.calendarName,
-              calendarColor: calendarSync.color || undefined,
-              title: event.summary || 'Untitled Event',
-              description: event.description,
-              location: event.location,
-              startTime,
-              endTime,
-              isAllDay,
-              timezone: event.start.timeZone || 'America/New_York',
-              htmlLink: event.htmlLink,
+              timeMin: timeMin.toISOString(),
+              timeMax: timeMax.toISOString(),
+              singleEvents: true,
+              orderBy: 'startTime',
             });
-          });
-        } catch (error) {
-          console.error(
-            `Error fetching events from calendar ${calendarSync.calendarName}:`,
-            error
-          );
-        }
-      })
-    );
+
+            const events = response.data.items || [];
+
+            events.forEach((event) => {
+              if (!event.id || !event.start || !event.end) return;
+
+              const isAllDay = !!event.start.date;
+              const startTime = event.start.dateTime || event.start.date || '';
+              const endTime = event.end.dateTime || event.end.date || '';
+
+              googleEvents.push({
+                id: event.id,
+                source: 'google',
+                calendarId: calendarSync.calendarId,
+                calendarName: calendarSync.calendarName,
+                calendarColor: calendarSync.color || undefined,
+                title: event.summary || 'Untitled Event',
+                description: event.description,
+                location: event.location,
+                startTime,
+                endTime,
+                isAllDay,
+                timezone: event.start.timeZone || 'America/New_York',
+                htmlLink: event.htmlLink,
+              });
+            });
+          } catch (error) {
+            console.error(
+              `Error fetching events from calendar ${calendarSync.calendarName}:`,
+              error
+            );
+          }
+        })
+      );
+    }
 
     // Fetch Life OS events from database
     const lifeOSEvents = await prisma.calendarEvent.findMany({

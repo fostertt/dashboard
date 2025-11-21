@@ -3,6 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+function parseFilterCriteria(rawCriteria: string | null) {
+  if (!rawCriteria) return null;
+
+  try {
+    return JSON.parse(rawCriteria);
+  } catch (error) {
+    console.warn("Invalid filterCriteria for smart list; ignoring value", error);
+    return null;
+  }
+}
+
 // GET /api/lists - Get all lists for the user
 export async function GET() {
   try {
@@ -30,8 +41,12 @@ export async function GET() {
     // For smart lists, dynamically fetch filtered tasks
     const listsWithTasks = await Promise.all(
       lists.map(async (list) => {
-        if (list.listType === "smart" && list.filterCriteria) {
-          const criteria = JSON.parse(list.filterCriteria);
+        if (list.listType === "smart") {
+          const criteria = parseFilterCriteria(list.filterCriteria);
+
+          if (!criteria) {
+            return { ...list, filteredTasks: [] };
+          }
           const where: any = { userId, itemType: "task" };
 
           if (criteria.priority) where.priority = criteria.priority;
