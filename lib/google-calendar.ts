@@ -14,8 +14,13 @@ export async function getCalendarClient() {
     process.env.GOOGLE_CLIENT_SECRET
   );
 
+  // Set credentials with access_token, refresh_token, and expiry
+  // The Google SDK will automatically refresh the token when it expires
+  // if a refresh_token is provided
   oauth2Client.setCredentials({
     access_token: session.accessToken as string,
+    refresh_token: session.refreshToken as string,
+    expiry_date: session.expiresAt as number,
   });
 
   return google.calendar({ version: 'v3', auth: oauth2Client });

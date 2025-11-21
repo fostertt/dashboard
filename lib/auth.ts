@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user && user) {
         session.user.id = user.id;
 
-        // Get the user's Google account to include access token
+        // Get the user's Google account to include access token AND refresh token
         const account = await prisma.account.findFirst({
           where: {
             userId: user.id,
@@ -50,6 +50,8 @@ export const authOptions: NextAuthOptions = {
 
         if (account?.access_token) {
           (session as any).accessToken = account.access_token;
+          (session as any).refreshToken = account.refresh_token;
+          (session as any).expiresAt = account.expires_at;
         }
       }
 
