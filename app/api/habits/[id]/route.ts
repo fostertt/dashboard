@@ -15,7 +15,7 @@ export async function GET(
     const habit = await prisma.habit.findUnique({
       where: { id: habitId },
       include: {
-        completions: true,
+        habit_completions: true,
         subTasks: true,
         parent: true,
       },

@@ -77,7 +77,9 @@ export default function Home() {
     new Set(["habit", "task", "reminder", "event"])
   );
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null
+  );
 
   // Form fields
   const [formName, setFormName] = useState("");
@@ -95,7 +97,9 @@ export default function Home() {
 
   // Date navigation functions
   const navigateToDate = (date: Date) => {
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const dateStr = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
     router.push(`/?date=${dateStr}`);
     setSelectedDate(date);
   };
@@ -164,7 +168,9 @@ export default function Home() {
       setItems(Array.isArray(itemsData) ? itemsData : []);
 
       // Fetch completions for selected date
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+      const dateStr = `${selectedDate.getFullYear()}-${String(
+        selectedDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
       const completionsRes = await fetch(`/api/completions?date=${dateStr}`);
       if (!completionsRes.ok) {
         throw new Error("Failed to load completions");
@@ -177,7 +183,9 @@ export default function Home() {
 
       // Fetch calendar events for the selected date
       try {
-        const eventsRes = await fetch(`/api/calendar/events?startDate=${dateStr}&endDate=${dateStr}`);
+        const eventsRes = await fetch(
+          `/api/calendar/events?startDate=${dateStr}&endDate=${dateStr}`
+        );
         if (eventsRes.ok) {
           const eventsData = await eventsRes.json();
           setEvents(Array.isArray(eventsData) ? eventsData : []);
@@ -201,7 +209,9 @@ export default function Home() {
 
   const toggleItem = async (itemId: number) => {
     try {
-      const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
+      const dateStr = `${selectedDate.getFullYear()}-${String(
+        selectedDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`;
       const response = await fetch(`/api/items/${itemId}/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -344,10 +354,16 @@ export default function Home() {
 
       await loadData();
       closeModal();
-      showToast(`${selectedItemType.charAt(0).toUpperCase() + selectedItemType.slice(1)} created successfully!`, "success");
+      showToast(
+        `${
+          selectedItemType.charAt(0).toUpperCase() + selectedItemType.slice(1)
+        } created successfully!`,
+        "success"
+      );
     } catch (error) {
       console.error("Error creating item:", error);
-      const message = error instanceof Error ? error.message : "Failed to create item";
+      const message =
+        error instanceof Error ? error.message : "Failed to create item";
       setError(message);
       showToast(message, "error");
     } finally {
@@ -400,7 +416,8 @@ export default function Home() {
       showToast("Item updated successfully!", "success");
     } catch (error) {
       console.error("Error updating item:", error);
-      const message = error instanceof Error ? error.message : "Failed to update item";
+      const message =
+        error instanceof Error ? error.message : "Failed to update item";
       setError(message);
       showToast(message, "error");
     } finally {
@@ -428,7 +445,8 @@ export default function Home() {
       showToast("Item deleted successfully!", "success");
     } catch (error) {
       console.error("Error deleting item:", error);
-      const message = error instanceof Error ? error.message : "Failed to delete item";
+      const message =
+        error instanceof Error ? error.message : "Failed to delete item";
       setError(message);
       showToast(message, "error");
     } finally {
@@ -443,7 +461,9 @@ export default function Home() {
     if (item.itemType === "habit") {
       if (item.scheduleType === "daily") return true;
       if (item.scheduleType === "weekly" && item.scheduleDays) {
-        const scheduledDays = item.scheduleDays.split(",").map((d) => parseInt(d.trim()));
+        const scheduledDays = item.scheduleDays
+          .split(",")
+          .map((d) => parseInt(d.trim()));
         return scheduledDays.includes(dayForSchedule);
       }
     }
@@ -457,9 +477,12 @@ export default function Home() {
       }
       // Parse the date string without timezone conversion to avoid off-by-one errors
       // The dueDate comes as ISO string like "2025-11-16T00:00:00.000Z" or date string "2025-11-16"
-      const dueDateStr = typeof item.dueDate === 'string' ? item.dueDate : item.dueDate.toISOString();
-      const datePart = dueDateStr.split('T')[0]; // Extract "2025-11-16"
-      const [year, month, day] = datePart.split('-').map(Number);
+      const dueDateStr =
+        typeof item.dueDate === "string"
+          ? item.dueDate
+          : (item.dueDate as Date)?.toISOString() || "";
+      const datePart = dueDateStr.split("T")[0]; // Extract "2025-11-16"
+      const [year, month, day] = datePart.split("-").map(Number);
       const dueDate = new Date(year, month - 1, day); // Create local date without timezone shift
       return dueDate.toDateString() === selectedDate.toDateString();
     }
@@ -502,7 +525,9 @@ export default function Home() {
   };
 
   const todayItems = items.filter(isScheduledForDate);
-  const filteredItems = todayItems.filter((item) => filterTypes.has(item.itemType));
+  const filteredItems = todayItems.filter((item) =>
+    filterTypes.has(item.itemType)
+  );
 
   // Filter events based on filter settings
   const filteredEvents = filterTypes.has("event") ? events : [];
@@ -555,8 +580,12 @@ export default function Home() {
 
   const isSubItemCompletedForDate = (subItem: SubItem, date: Date) => {
     if (!subItem.completions) return false;
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    return subItem.completions.some((c) => c.completionDate.startsWith(dateStr));
+    const dateStr = `${date.getFullYear()}-${String(
+      date.getMonth() + 1
+    ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    return subItem.completions.some((c) =>
+      c.completionDate.startsWith(dateStr)
+    );
   };
 
   return (
@@ -612,14 +641,26 @@ export default function Home() {
                 onClick={goToPreviousDay}
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center gap-2"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
                 </svg>
                 Previous Day
               </button>
 
               <div className="text-center">
-                <h2 className="text-xl font-bold text-gray-800">{formatSelectedDate()}</h2>
+                <h2 className="text-xl font-bold text-gray-800">
+                  {formatSelectedDate()}
+                </h2>
                 {!isToday() && (
                   <button
                     onClick={goToToday}
@@ -635,8 +676,18 @@ export default function Home() {
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center gap-2"
               >
                 Next Day
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
                 </svg>
               </button>
             </div>
@@ -646,7 +697,9 @@ export default function Home() {
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-6">
             <div className="flex items-center gap-3 mb-6 flex-wrap">
               <span className="text-3xl">📋</span>
-              <h2 className="text-2xl font-bold text-gray-800">{isToday() ? "Today" : "Items"}</h2>
+              <h2 className="text-2xl font-bold text-gray-800">
+                {isToday() ? "Today" : "Items"}
+              </h2>
               <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-semibold">
                 {sortedItems.length + filteredEvents.length} items
               </span>
@@ -678,24 +731,28 @@ export default function Home() {
 
                 {showFilterMenu && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-10">
-                    {(["habit", "task", "reminder", "event"] as ItemType[]).map((type) => (
-                      <button
-                        key={type}
-                        onClick={() => toggleFilter(type)}
-                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={filterTypes.has(type)}
-                          onChange={() => {}}
-                          className="w-4 h-4 text-purple-600 rounded"
-                        />
-                        <span className="text-xl">{getItemTypeIcon(type)}</span>
-                        <span className="text-sm font-medium text-gray-700">
-                          {getItemTypeLabel(type)}s
-                        </span>
-                      </button>
-                    ))}
+                    {(["habit", "task", "reminder", "event"] as ItemType[]).map(
+                      (type) => (
+                        <button
+                          key={type}
+                          onClick={() => toggleFilter(type)}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={filterTypes.has(type)}
+                            onChange={() => {}}
+                            className="w-4 h-4 text-purple-600 rounded"
+                          />
+                          <span className="text-xl">
+                            {getItemTypeIcon(type)}
+                          </span>
+                          <span className="text-sm font-medium text-gray-700">
+                            {getItemTypeLabel(type)}s
+                          </span>
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -739,7 +796,10 @@ export default function Home() {
                     key={`event-${event.id}`}
                     onClick={() => setSelectedEvent(event)}
                     className="border-2 rounded-xl p-5 hover:shadow-md transition-all duration-200 cursor-pointer border-gray-100 bg-gradient-to-r from-white to-gray-50 hover:border-green-300"
-                    style={{ borderLeftWidth: '4px', borderLeftColor: event.calendarColor || '#10b981' }}
+                    style={{
+                      borderLeftWidth: "4px",
+                      borderLeftColor: event.calendarColor || "#10b981",
+                    }}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -759,7 +819,9 @@ export default function Home() {
                         </div>
 
                         {event.description && (
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{event.description}</p>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                            {event.description}
+                          </p>
                         )}
 
                         <div className="flex items-center gap-4 text-sm">
@@ -779,13 +841,21 @@ export default function Home() {
                                 />
                               </svg>
                               <span>
-                                {new Date(event.startTime).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })} - {new Date(event.endTime).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
+                                {new Date(event.startTime).toLocaleTimeString(
+                                  "en-US",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}{" "}
+                                -{" "}
+                                {new Date(event.endTime).toLocaleTimeString(
+                                  "en-US",
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  }
+                                )}
                               </span>
                             </span>
                           )}
@@ -805,14 +875,18 @@ export default function Home() {
                                   d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
                                 />
                               </svg>
-                              <span className="truncate max-w-xs">{event.location}</span>
+                              <span className="truncate max-w-xs">
+                                {event.location}
+                              </span>
                             </span>
                           )}
                         </div>
                       </div>
 
                       <div className="ml-2">
-                        <span className="text-xs text-gray-500">{event.calendarName}</span>
+                        <span className="text-xs text-gray-500">
+                          {event.calendarName}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -823,7 +897,8 @@ export default function Home() {
                   // Check completion status based on item type:
                   // - Recurring items (with scheduleType): check completedToday set
                   // - Non-recurring items: check isCompleted field
-                  const isRecurring = item.scheduleType && item.scheduleType !== "";
+                  const isRecurring =
+                    item.scheduleType && item.scheduleType !== "";
                   const isCompleted = isRecurring
                     ? completedToday.has(item.id)
                     : item.isCompleted || false;
@@ -841,7 +916,9 @@ export default function Home() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xl">{getItemTypeIcon(item.itemType)}</span>
+                            <span className="text-xl">
+                              {getItemTypeIcon(item.itemType)}
+                            </span>
                             {item.priority && (
                               <span
                                 className={`w-3 h-3 rounded-full flex-shrink-0 ${
@@ -856,7 +933,9 @@ export default function Home() {
                             )}
                             <h3
                               className={`text-lg font-semibold ${
-                                isCompleted ? "text-gray-500 line-through" : "text-gray-900"
+                                isCompleted
+                                  ? "text-gray-500 line-through"
+                                  : "text-gray-900"
                               }`}
                             >
                               {item.name}
@@ -865,27 +944,46 @@ export default function Home() {
                               <span className="text-xs text-gray-500">
                                 (
                                 {[
-                                  item.effort && item.effort.charAt(0).toUpperCase() + item.effort.slice(1),
-                                  item.duration && item.duration.charAt(0).toUpperCase() + item.duration.slice(1),
-                                  item.focus && item.focus.charAt(0).toUpperCase() + item.focus.slice(1),
+                                  item.effort &&
+                                    item.effort.charAt(0).toUpperCase() +
+                                      item.effort.slice(1),
+                                  item.duration &&
+                                    item.duration.charAt(0).toUpperCase() +
+                                      item.duration.slice(1),
+                                  item.focus &&
+                                    item.focus.charAt(0).toUpperCase() +
+                                      item.focus.slice(1),
                                 ]
                                   .filter(Boolean)
                                   .join(", ")}
                                 )
                               </span>
                             )}
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${getItemTypeColor(item.itemType)}`}>
+                            <span
+                              className={`text-xs px-2 py-1 rounded-full font-medium ${getItemTypeColor(
+                                item.itemType
+                              )}`}
+                            >
                               {getItemTypeLabel(item.itemType)}
                             </span>
-                            {item.isParent && item.subItems && item.subItems.length > 0 && (
-                              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
-                                {item.subItems.length} sub-{item.itemType === "habit" ? "habits" : item.itemType === "task" ? "tasks" : "items"}
-                              </span>
-                            )}
+                            {item.isParent &&
+                              item.subItems &&
+                              item.subItems.length > 0 && (
+                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
+                                  {item.subItems.length} sub-
+                                  {item.itemType === "habit"
+                                    ? "habits"
+                                    : item.itemType === "task"
+                                    ? "tasks"
+                                    : "items"}
+                                </span>
+                              )}
                           </div>
 
                           {item.description && (
-                            <p className="text-gray-600 text-sm mb-3">{item.description}</p>
+                            <p className="text-gray-600 text-sm mb-3">
+                              {item.description}
+                            </p>
                           )}
 
                           <div className="flex items-center gap-4 text-sm">
@@ -930,29 +1028,37 @@ export default function Home() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          {item.isParent && item.subItems && item.subItems.length > 0 && (
-                            <button
-                              onClick={() => toggleExpanded(item.id)}
-                              className="w-8 h-8 rounded-lg border border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-colors flex items-center justify-center"
-                              title={expandedItems.has(item.id) ? "Collapse" : "Expand"}
-                            >
-                              <svg
-                                className={`w-4 h-4 text-gray-600 transition-transform ${
-                                  expandedItems.has(item.id) ? "rotate-180" : ""
-                                }`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
+                          {item.isParent &&
+                            item.subItems &&
+                            item.subItems.length > 0 && (
+                              <button
+                                onClick={() => toggleExpanded(item.id)}
+                                className="w-8 h-8 rounded-lg border border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-colors flex items-center justify-center"
+                                title={
+                                  expandedItems.has(item.id)
+                                    ? "Collapse"
+                                    : "Expand"
+                                }
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 9l-7 7-7-7"
-                                />
-                              </svg>
-                            </button>
-                          )}
+                                <svg
+                                  className={`w-4 h-4 text-gray-600 transition-transform ${
+                                    expandedItems.has(item.id)
+                                      ? "rotate-180"
+                                      : ""
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              </button>
+                            )}
                           <button
                             onClick={() => openEditModal(item)}
                             className="w-8 h-8 rounded-lg border border-gray-300 hover:border-blue-500 hover:bg-blue-50 transition-colors flex items-center justify-center"
@@ -981,7 +1087,9 @@ export default function Home() {
                             }`}
                           >
                             <svg
-                              className={`w-5 h-5 ${isCompleted ? "text-white" : "text-gray-400"}`}
+                              className={`w-5 h-5 ${
+                                isCompleted ? "text-white" : "text-gray-400"
+                              }`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1004,12 +1112,11 @@ export default function Home() {
                         expandedItems.has(item.id) && (
                           <div className="mt-4 ml-8 space-y-2 border-l-2 border-purple-200 pl-4">
                             {item.subItems.map((subItem) => {
-                              const subItemCompleted =
-                                isRecurring
-                                  ? subItem.id
-                                    ? completedToday.has(subItem.id)
-                                    : false
-                                  : subItem.isCompleted || false;
+                              const subItemCompleted = isRecurring
+                                ? subItem.id
+                                  ? completedToday.has(subItem.id)
+                                  : false
+                                : subItem.isCompleted || false;
 
                               return (
                                 <div
@@ -1023,14 +1130,19 @@ export default function Home() {
                                   <div className="flex items-center gap-3">
                                     <span
                                       className={`text-sm font-medium ${
-                                        subItemCompleted ? "text-gray-500 line-through" : "text-gray-900"
+                                        subItemCompleted
+                                          ? "text-gray-500 line-through"
+                                          : "text-gray-900"
                                       }`}
                                     >
                                       {subItem.name}
                                     </span>
                                     {subItem.dueDate && (
                                       <span className="text-xs text-gray-500">
-                                        Due: {new Date(subItem.dueDate).toLocaleDateString()}
+                                        Due:{" "}
+                                        {new Date(
+                                          subItem.dueDate
+                                        ).toLocaleDateString()}
                                       </span>
                                     )}
                                   </div>
@@ -1045,7 +1157,9 @@ export default function Home() {
                                     >
                                       <svg
                                         className={`w-4 h-4 ${
-                                          subItemCompleted ? "text-white" : "text-gray-400"
+                                          subItemCompleted
+                                            ? "text-white"
+                                            : "text-gray-400"
                                         }`}
                                         fill="none"
                                         stroke="currentColor"
@@ -1096,7 +1210,9 @@ export default function Home() {
                 className="w-full px-4 py-3 text-left hover:bg-yellow-50 flex items-center gap-3 transition-colors"
               >
                 <span className="text-2xl">🔔</span>
-                <span className="font-semibold text-gray-900">Add Reminder</span>
+                <span className="font-semibold text-gray-900">
+                  Add Reminder
+                </span>
               </button>
             </div>
           )}
@@ -1129,12 +1245,20 @@ export default function Home() {
                     type="text"
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    placeholder={`e.g., ${selectedItemType === "habit" ? "Morning Exercise" : selectedItemType === "task" ? "Finish report" : "Doctor's appointment"}`}
+                    placeholder={`e.g., ${
+                      selectedItemType === "habit"
+                        ? "Morning Exercise"
+                        : selectedItemType === "task"
+                        ? "Finish report"
+                        : "Doctor's appointment"
+                    }`}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 placeholder-gray-400"
                     autoFocus
                     maxLength={100}
                   />
-                  <p className="text-xs text-gray-500 mt-1">{formName.length}/100 characters</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formName.length}/100 characters
+                  </p>
                 </div>
 
                 <div>
@@ -1149,7 +1273,8 @@ export default function Home() {
                   />
                 </div>
 
-                {(selectedItemType === "task" || selectedItemType === "reminder") && (
+                {(selectedItemType === "task" ||
+                  selectedItemType === "reminder") && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Day (optional)
@@ -1171,7 +1296,9 @@ export default function Home() {
                       onChange={(e) => setFormRecurring(e.target.checked)}
                       className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                     />
-                    <span className="text-sm font-medium text-gray-700">Recurring (daily)</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      Recurring (daily)
+                    </span>
                   </label>
                 </div>
 
@@ -1240,7 +1367,8 @@ export default function Home() {
                       <option value="background">Background</option>
                     </select>
                     <p className="text-xs text-gray-500 mt-1">
-                      Deep = full attention, Light = can multitask, Background = set and forget
+                      Deep = full attention, Light = can multitask, Background =
+                      set and forget
                     </p>
                   </div>
                 </div>
@@ -1249,31 +1377,63 @@ export default function Home() {
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between mb-3">
                     <label className="block text-sm font-medium text-gray-700">
-                      Sub-{selectedItemType === "habit" ? "Habits" : selectedItemType === "task" ? "Tasks" : "Items"}
+                      Sub-
+                      {selectedItemType === "habit"
+                        ? "Habits"
+                        : selectedItemType === "task"
+                        ? "Tasks"
+                        : "Items"}
                     </label>
                     <button
                       type="button"
                       onClick={() =>
-                        setFormSubItems([...formSubItems, { name: "", dueDate: undefined }])
+                        setFormSubItems([
+                          ...formSubItems,
+                          { name: "", dueDate: undefined },
+                        ])
                       }
                       className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 4v16m8-8H4"
+                        />
                       </svg>
-                      Add Sub-{selectedItemType === "habit" ? "Habit" : selectedItemType === "task" ? "Task" : "Item"}
+                      Add Sub-
+                      {selectedItemType === "habit"
+                        ? "Habit"
+                        : selectedItemType === "task"
+                        ? "Task"
+                        : "Item"}
                     </button>
                   </div>
 
                   {formSubItems.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">No sub-items added yet</p>
+                    <p className="text-sm text-gray-500 italic">
+                      No sub-items added yet
+                    </p>
                   ) : (
                     <div className="space-y-3 max-h-48 overflow-y-auto">
                       {formSubItems.map((subItem, index) => {
                         // Date validation - only warn if sub-task date is AFTER parent date
-                        const parentDueDate = formDay ? new Date(formDay) : null;
-                        const subItemDate = subItem.dueDate ? new Date(subItem.dueDate) : null;
-                        const isAfterParent = parentDueDate && subItemDate && subItemDate > parentDueDate;
+                        const parentDueDate = formDay
+                          ? new Date(formDay)
+                          : null;
+                        const subItemDate = subItem.dueDate
+                          ? new Date(subItem.dueDate)
+                          : null;
+                        const isAfterParent =
+                          parentDueDate &&
+                          subItemDate &&
+                          subItemDate > parentDueDate;
 
                         return (
                           <div key={index} className="flex items-start gap-2">
@@ -1283,43 +1443,66 @@ export default function Home() {
                                 value={subItem.name}
                                 onChange={(e) => {
                                   const updated = [...formSubItems];
-                                  updated[index] = { ...updated[index], name: e.target.value };
+                                  updated[index] = {
+                                    ...updated[index],
+                                    name: e.target.value,
+                                  };
                                   setFormSubItems(updated);
                                 }}
                                 placeholder={`Sub-${selectedItemType} name`}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-gray-900 text-sm"
                               />
                             </div>
-                            {(selectedItemType === "task" || selectedItemType === "reminder") && (
+                            {(selectedItemType === "task" ||
+                              selectedItemType === "reminder") && (
                               <div className="w-36">
                                 <input
                                   type="date"
                                   value={subItem.dueDate || ""}
                                   onChange={(e) => {
                                     const updated = [...formSubItems];
-                                    updated[index] = { ...updated[index], dueDate: e.target.value || undefined };
+                                    updated[index] = {
+                                      ...updated[index],
+                                      dueDate: e.target.value || undefined,
+                                    };
                                     setFormSubItems(updated);
                                   }}
                                   className={`w-full px-2 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white text-sm ${
-                                    isAfterParent ? "border-red-500 text-red-500" : "border-gray-300 text-gray-900"
+                                    isAfterParent
+                                      ? "border-red-500 text-red-500"
+                                      : "border-gray-300 text-gray-900"
                                   }`}
                                 />
                                 {isAfterParent && (
-                                  <p className="text-xs text-red-500 mt-1">After parent due date</p>
+                                  <p className="text-xs text-red-500 mt-1">
+                                    After parent due date
+                                  </p>
                                 )}
                               </div>
                             )}
                             <button
                               type="button"
                               onClick={() => {
-                                const updated = formSubItems.filter((_, i) => i !== index);
+                                const updated = formSubItems.filter(
+                                  (_, i) => i !== index
+                                );
                                 setFormSubItems(updated);
                               }}
                               className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                               title="Remove sub-item"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
                               </svg>
                             </button>
                           </div>
@@ -1353,7 +1536,11 @@ export default function Home() {
                   className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {savingItem && (
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
                       <circle
                         className="opacity-25"
                         cx="12"
@@ -1386,9 +1573,12 @@ export default function Home() {
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
             <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Delete Item?</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Delete Item?
+              </h2>
               <p className="text-gray-600 mb-6">
-                Are you sure you want to delete this item? This action cannot be undone.
+                Are you sure you want to delete this item? This action cannot be
+                undone.
               </p>
               <div className="flex gap-3">
                 <button
@@ -1404,7 +1594,11 @@ export default function Home() {
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {deletingItem && (
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <svg
+                      className="animate-spin h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
                       <circle
                         className="opacity-25"
                         cx="12"
@@ -1441,13 +1635,33 @@ export default function Home() {
               }`}
             >
               {toast.type === "success" && (
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               )}
               {toast.type === "error" && (
-                <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-5 h-5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               )}
               <span className="flex-1 font-medium">{toast.message}</span>

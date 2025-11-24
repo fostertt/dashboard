@@ -41,7 +41,8 @@ async function refreshAccessToken(token: any) {
 }
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  // Note: Adapter removed for JWT sessions - we don't need database account linking
+  // User info is stored in the encrypted JWT instead
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,

@@ -86,13 +86,13 @@ export async function GET(request: NextRequest) {
                 calendarName: calendarSync.calendarName,
                 calendarColor: calendarSync.color || undefined,
                 title: event.summary || 'Untitled Event',
-                description: event.description,
-                location: event.location,
+                description: event.description || undefined,
+                location: event.location || undefined,
                 startTime,
                 endTime,
                 isAllDay,
                 timezone: event.start.timeZone || 'America/New_York',
-                htmlLink: event.htmlLink,
+                htmlLink: event.htmlLink || undefined,
               });
             });
           } catch (error) {
